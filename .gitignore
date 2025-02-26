@@ -1,0 +1,103 @@
+# .NETのビルド結果
+bin/
+obj/
+**/bin/
+**/obj/
+
+# ユーザー固有のファイル
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio固有のファイル
+.vs/
+.vscode/
+.idea/
+*.nupkg
+*.snupkg
+*.vsix
+project.lock.json
+
+# ビルド結果
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+# テスト結果
+TestResults/
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+
+# ログファイル
+*.log
+logs/
+
+# 機密情報と環境設定
+.env
+appsettings.*.json
+!appsettings.Example.json
+local.settings.json
+secrets.json
+/Properties/launchSettings.json
+
+# Tools生成ファイル
+*.exe
+
+# Docker
+.dockerignore
+
+# Elasticsearchデータ
+elasticsearch-data/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# macOS固有のファイル
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windowsフォルダ固有のファイル
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linuxファイル
+*~
+.directory
+
+# 公開ディレクトリ
+publish/
+**/publish/
+
+# テンポラリファイル
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Project specific
+memory-bank/
+.clinerules
+.cursorrules

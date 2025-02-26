@@ -1,0 +1,6 @@
+@KDalytics.API_HostAddress = http://localhost:5167
+
+GET {{KDalytics.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

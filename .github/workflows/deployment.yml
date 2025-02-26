@@ -1,0 +1,44 @@
+name: Deployment
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 手動トリガーを許可
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build --verbosity normal
+
+      - name: Publish API
+        run: dotnet publish src/KDalytics.API/KDalytics.API.csproj -c Release -o publish/api
+
+      - name: Publish Web
+        run: dotnet publish src/KDalytics.Web/KDalytics.Web.csproj -c Release -o publish/web
+
+      - name: Publish Functions
+        run: dotnet publish src/KDalytics.Functions/KDalytics.Functions.csproj -c Release -o publish/functions
+
+      - name: Publish Discord Bot
+        run: dotnet publish src/KDalytics.Discord/KDalytics.Discord.csproj -c Release -o publish/discord
+
+      # デプロイステップのプレースホルダー - 将来的なAzureデプロイ設定に置き換える
+      - name: Deploy to Azure (Placeholder)
+        run: echo "This is a placeholder for Azure deployment steps. Configure appropriate Azure deployment actions here."
