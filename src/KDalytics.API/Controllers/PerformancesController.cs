@@ -54,7 +54,6 @@ public class PerformancesController : ControllerBase
             {
                 return NotFound($"プレイヤーID '{request.Puuid}' が見つかりません。");
             }
-
             var stats = await _performanceRepository.GetPlayerPerformanceStatsAsync(
                 request.Puuid,
                 request.From,
@@ -62,6 +61,12 @@ public class PerformancesController : ControllerBase
                 request.GameMode,
                 cancellationToken);
 
+            if (stats == null)
+            {
+                return NotFound($"プレイヤーID '{request.Puuid}' の期間 {request.From:yyyy/MM/dd} から {request.To:yyyy/MM/dd} の統計情報が見つかりません。");
+            }
+
+            return Ok(PerformanceStatsResponseDto.FromEntity(stats));
             return Ok(PerformanceStatsResponseDto.FromEntity(stats));
         }
         catch (Exception ex)

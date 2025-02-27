@@ -28,10 +28,17 @@ public class PlayerCommands : InteractionModuleBase<SocketInteractionContext>
 
         try
         {
+            // タグの形式を確認
+            if (tag.StartsWith("#"))
+            {
+                tag = tag.Substring(1); // #を削除
+            }
+
+            Console.WriteLine($"プレイヤー検索: {name}#{tag}");
             var player = await _playerApi.SearchPlayerAsync(name, tag);
             if (player == null)
             {
-                await FollowupAsync($"プレイヤー '{name}#{tag}' が見つかりませんでした。");
+                await FollowupAsync($"プレイヤー '{name}#{tag}' が見つかりませんでした。プレイヤー名とタグが正しいか確認してください。");
                 return;
             }
 
@@ -177,7 +184,7 @@ public class PlayerCommands : InteractionModuleBase<SocketInteractionContext>
     public async Task GetPlayerStatsAsync(
         [Summary("name", "プレイヤー名")] string name,
         [Summary("tag", "プレイヤータグ（#以降）")] string tag,
-        [Summary("period", "期間（week/month/season）")] string period = "month")
+        [Summary("period", "期間（week/month/season/all）")] string period = "month")
     {
         await DeferAsync();
 
@@ -203,6 +210,10 @@ public class PlayerCommands : InteractionModuleBase<SocketInteractionContext>
                     from = DateTime.UtcNow.AddDays(-90);
                     periodName = "シーズン";
                     break;
+                case "all":
+                    from = DateTime.UtcNow.AddYears(-1); // 1年前までのデータを取得
+                    periodName = "全期間";
+                    break;
                 case "month":
                 default:
                     from = DateTime.UtcNow.AddDays(-30);
@@ -213,7 +224,14 @@ public class PlayerCommands : InteractionModuleBase<SocketInteractionContext>
             var stats = await _performanceApi.GetPlayerPerformanceStatsAsync(player.Puuid, from);
             if (stats == null)
             {
-                await FollowupAsync($"プレイヤー '{player.DisplayName}' の統計情報が見つかりませんでした。");
+                await FollowupAsync($"プレイヤー '{player.DisplayName}' の統計情報が見つかりませんでした。指定された期間（{from.ToLocalTime():yyyy/MM/dd} - {DateTime.UtcNow.ToLocalTime():yyyy/MM/dd}）にプレイしたデータがない可能性があります。");
+                return;
+            }
+
+            // 試合数が0の場合も明示的にメッセージを表示
+            if (stats.MatchesPlayed == 0)
+            {
+                await FollowupAsync($"プレイヤー '{player.DisplayName}' は指定された期間（{from.ToLocalTime():yyyy/MM/dd} - {DateTime.UtcNow.ToLocalTime():yyyy/MM/dd}）に試合をプレイしていません。");
                 return;
             }
 
@@ -227,7 +245,7 @@ public class PlayerCommands : InteractionModuleBase<SocketInteractionContext>
                 .AddField("K/D", stats.KdRatioDisplay, true)
                 .AddField("KDA比", stats.KdaRatioDisplay, true)
                 .AddField("HS率", stats.HeadshotPercentageDisplay, true)
-                .AddField("最も使用したエージェント", stats.MostPlayedAgent, true)
+                .AddField("最も使用したエージェント", string.IsNullOrEmpty(stats.MostPlayedAgent) ? "データなし" : stats.MostPlayedAgent, true)
                 .WithFooter(footer => footer.Text = $"PUUID: {player.Puuid}")
                 .WithCurrentTimestamp()
                 .Build();
@@ -253,6 +271,74 @@ public class PlayerCommands : InteractionModuleBase<SocketInteractionContext>
 
                 await FollowupAsync(embed: agentStatsEmbed.Build());
             }
+        }
+        catch (Exception ex)
+        {
+            await FollowupAsync($"エラーが発生しました: {ex.Message}");
+        }
+    }
+
+    [SlashCommand("update", "プレイヤーの過去の試合データを取得します")]
+    public async Task UpdatePlayerDataAsync(
+        [Summary("name", "プレイヤー名")] string name,
+        [Summary("tag", "プレイヤータグ（#以降）")] string tag,
+        [Summary("force", "データが既に存在する場合も強制的に更新する（デフォルト: false）")] bool force = false)
+    {
+        await DeferAsync();
+
+        try
+        {
+            var player = await _playerApi.SearchPlayerAsync(name, tag);
+            if (player == null)
+            {
+                await FollowupAsync($"プレイヤー '{name}#{tag}' が見つかりませんでした。");
+                return;
+            }
+
+            if (!player.IsTracked)
+            {
+                await FollowupAsync($"プレイヤー '{player.DisplayName}' はトラッキングされていません。先に `/player track {name} {tag}` を実行してください。");
+                return;
+            }
+
+            // 既存のデータ量をチェック
+            var from = DateTime.UtcNow.AddDays(-90); // 1シーズン分（90日）
+            var stats = await _performanceApi.GetPlayerPerformanceStatsAsync(player.Puuid, from);
+
+            // データが既に存在し、forceフラグがfalseの場合は更新をスキップ
+            if (stats != null && stats.MatchesPlayed > 0 && !force)
+            {
+                await FollowupAsync($"プレイヤー '{player.DisplayName}' の統計データは既に存在します（{stats.MatchesPlayed}試合）。強制的に更新するには `force` オプションを使用してください。");
+                return;
+            }
+
+            // 更新処理を開始
+            await FollowupAsync($"プレイヤー '{player.DisplayName}' の1シーズン分の試合データを取得中です...");
+
+            // 1シーズン分の試合データを取得（非同期で実行）
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    // 1シーズン分（90日分）の試合データを取得
+                    // 通常、1シーズンは約50-100試合程度なので、最大100試合を取得
+                    var result = await _matchApi.FetchPlayerHistoricalMatchesAsync(player.Puuid, 100);
+
+                    // 処理完了メッセージ
+                    if (result.MatchesProcessed > 0)
+                    {
+                        await FollowupAsync($"{player.DisplayName} の過去の試合データを取得しました（{result.MatchesProcessed}試合）。`/player stats {name} {tag}` で統計情報を確認できます。");
+                    }
+                    else
+                    {
+                        await FollowupAsync($"{player.DisplayName} の過去の試合データが見つかりませんでした。");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await FollowupAsync($"過去の試合データ取得中にエラーが発生しました: {ex.Message}");
+                }
+            });
         }
         catch (Exception ex)
         {

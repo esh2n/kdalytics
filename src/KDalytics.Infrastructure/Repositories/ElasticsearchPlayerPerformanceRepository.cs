@@ -171,17 +171,19 @@ public class ElasticsearchPlayerPerformanceRepository : ElasticsearchRepositoryB
         if (!response.IsValid)
         {
             _logger.LogError("パフォーマンス統計クエリエラー: {Error}", response.DebugInformation);
-            // エラー時でも空の結果を返す
-            return new PerformanceStats
-            {
-                Puuid = puuid,
-                StartDate = from,
-                EndDate = to
-            };
+            // エラー時はnullを返す
+            return null;
         }
 
         // 集計結果から統計情報を構築
         int matchesPlayed = (int)response.Aggregations.ValueCount("matches_played").Value;
+
+        // 試合数が0の場合はnullを返す
+        if (matchesPlayed == 0)
+        {
+            _logger.LogInformation("プレイヤー {Puuid} の期間 {From} から {To} の試合データが見つかりません", puuid, from, to);
+            return null;
+        }
         int totalKills = (int)response.Aggregations.Sum("total_kills").Value;
         int totalDeaths = (int)response.Aggregations.Sum("total_deaths").Value;
         int totalAssists = (int)response.Aggregations.Sum("total_assists").Value;

@@ -55,7 +55,11 @@ public class HenrikApiClient : IHenrikApiClient
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            // 未知のプロパティを無視する設定を追加
+            IgnoreReadOnlyProperties = false,
+            NumberHandling = JsonNumberHandling.AllowReadingFromString,
+            Converters = { new JsonStringEnumConverter() }
         };
     }
 
@@ -69,7 +73,12 @@ public class HenrikApiClient : IHenrikApiClient
 
         string encodedName = WebUtility.UrlEncode(name);
         string encodedTag = WebUtility.UrlEncode(tag);
-        string endpoint = $"/v1/account/{encodedName}/{encodedTag}";
+
+        // Henrik APIの最新エンドポイントを使用
+        // 正しいエンドポイント: /valorant/v1/account/{name}/{tag} または /valorant/v2/account/{name}/{tag}
+        string endpoint = $"/valorant/v1/account/{encodedName}/{encodedTag}";
+
+        _logger.LogInformation($"Henrik API リクエスト: {endpoint}");
 
         return await SendRequestAsync<AccountInfoResponse>(endpoint, cancellationToken);
     }
@@ -80,7 +89,11 @@ public class HenrikApiClient : IHenrikApiClient
         if (string.IsNullOrEmpty(puuid))
             throw new ArgumentNullException(nameof(puuid));
 
-        string endpoint = $"/v1/by-puuid/account/{puuid}";
+        // Henrik APIの最新エンドポイントを使用
+        // 正しいエンドポイント: /valorant/v1/by-puuid/account/{puuid}
+        string endpoint = $"/valorant/v1/by-puuid/account/{puuid}";
+
+        _logger.LogInformation($"Henrik API リクエスト: {endpoint}");
 
         return await SendRequestAsync<AccountInfoResponse>(endpoint, cancellationToken);
     }
@@ -97,7 +110,12 @@ public class HenrikApiClient : IHenrikApiClient
 
         string encodedName = WebUtility.UrlEncode(name);
         string encodedTag = WebUtility.UrlEncode(tag);
-        string endpoint = $"/v2/mmr/{region}/{encodedName}/{encodedTag}";
+
+        // Henrik APIの最新エンドポイントを使用
+        // 正しいエンドポイント: /valorant/v2/mmr/{region}/{name}/{tag}
+        string endpoint = $"/valorant/v2/mmr/{region}/{encodedName}/{encodedTag}";
+
+        _logger.LogInformation($"Henrik API リクエスト: {endpoint}");
 
         return await SendRequestAsync<MmrInfoResponse>(endpoint, cancellationToken);
     }
@@ -110,7 +128,11 @@ public class HenrikApiClient : IHenrikApiClient
         if (string.IsNullOrEmpty(puuid))
             throw new ArgumentNullException(nameof(puuid));
 
-        string endpoint = $"/v2/by-puuid/mmr/{region}/{puuid}";
+        // Henrik APIの最新エンドポイントを使用
+        // 正しいエンドポイント: /valorant/v2/by-puuid/mmr/{region}/{puuid}
+        string endpoint = $"/valorant/v2/by-puuid/mmr/{region}/{puuid}";
+
+        _logger.LogInformation($"Henrik API リクエスト: {endpoint}");
 
         return await SendRequestAsync<MmrInfoResponse>(endpoint, cancellationToken);
     }
@@ -127,32 +149,130 @@ public class HenrikApiClient : IHenrikApiClient
 
         string encodedName = WebUtility.UrlEncode(name);
         string encodedTag = WebUtility.UrlEncode(tag);
-        string endpoint = $"/v3/matches/{region}/{encodedName}/{encodedTag}?size={count}";
+
+        // Henrik APIの最新エンドポイントを使用
+        // 正しいエンドポイント: /valorant/v4/matches/{region}/{platform}/{name}/{tag}
+        string platform = "pc"; // VALORANTはPC版のみなのでpcを固定
+        string endpoint = $"/valorant/v4/matches/{region}/{platform}/{encodedName}/{encodedTag}?size={count}";
 
         if (!string.IsNullOrEmpty(mode))
         {
             endpoint += $"&mode={WebUtility.UrlEncode(mode)}";
         }
 
-        return await SendRequestAsync<MatchlistResponse>(endpoint, cancellationToken);
+        _logger.LogInformation($"Henrik API リクエスト: {endpoint}");
+
+        var response = await SendRequestAsync<MatchlistResponse>(endpoint, cancellationToken);
+
+        // v4 APIレスポンスの場合、Metadataからマッチ情報をMatchIdにコピーする
+        if (response.Status == 200 && response.Data != null)
+        {
+            foreach (var matchData in response.Data)
+            {
+                if (matchData.Metadata != null && !string.IsNullOrEmpty(matchData.Metadata.Match_id))
+                {
+                    // MetadataのMatch_idをMatchIdフィールドにコピー
+                    matchData.MatchId = matchData.Metadata.Match_id;
+
+                    // その他の情報も必要に応じてコピー
+                    if (matchData.GameStart == 0 && !string.IsNullOrEmpty(matchData.Metadata.Started_at))
+                    {
+                        // ISO 8601形式の日時文字列をUnixタイムスタンプに変換
+                        if (DateTime.TryParse(matchData.Metadata.Started_at, out DateTime startTime))
+                        {
+                            matchData.GameStart = ((DateTimeOffset)startTime).ToUnixTimeMilliseconds();
+                        }
+                    }
+
+                    // マップ情報をコピー
+                    if (matchData.Metadata.Map != null)
+                    {
+                        if (string.IsNullOrEmpty(matchData.MapId) && !string.IsNullOrEmpty(matchData.Metadata.Map.Id))
+                            matchData.MapId = matchData.Metadata.Map.Id;
+                    }
+
+                    // キュー情報をコピー
+                    if (matchData.Metadata.Queue != null)
+                    {
+                        if (string.IsNullOrEmpty(matchData.QueueType) && !string.IsNullOrEmpty(matchData.Metadata.Queue.Id))
+                            matchData.QueueType = matchData.Metadata.Queue.Id;
+
+                        // キュー情報からゲームモードを設定
+                        if (string.IsNullOrEmpty(matchData.GameMode) && !string.IsNullOrEmpty(matchData.Metadata.Queue.Id))
+                            matchData.GameMode = matchData.Metadata.Queue.Id;
+                    }
+                }
+            }
+        }
+
+        return response;
     }
 
     /// <inheritdoc />
-    public async Task<MatchlistResponse> GetPlayerMatchesByPuuidAsync(string region, string puuid, int count = 5, string mode = "", CancellationToken cancellationToken = default)
+    public async Task<MatchlistResponse> GetPlayerMatchesByPuuidAsync(string region, string puuid, int count = 20, string mode = "", CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(region))
             throw new ArgumentNullException(nameof(region));
         if (string.IsNullOrEmpty(puuid))
             throw new ArgumentNullException(nameof(puuid));
 
-        string endpoint = $"/v3/by-puuid/matches/{region}/{puuid}?size={count}";
+        // Henrik APIの最新エンドポイントを使用
+        // 正しいエンドポイント: /valorant/v4/by-puuid/matches/{region}/{platform}/{puuid}
+        // platformはpcまたはconsoleを指定（デフォルトはpc）
+        string platform = "pc"; // VALORANTはPC版のみなのでpcを固定
+        string endpoint = $"/valorant/v4/by-puuid/matches/{region}/{platform}/{puuid}?size={count}";
 
         if (!string.IsNullOrEmpty(mode))
         {
             endpoint += $"&mode={WebUtility.UrlEncode(mode)}";
         }
 
-        return await SendRequestAsync<MatchlistResponse>(endpoint, cancellationToken);
+        _logger.LogInformation($"Henrik API リクエスト: {endpoint}");
+
+        var response = await SendRequestAsync<MatchlistResponse>(endpoint, cancellationToken);
+
+        // v4 APIレスポンスの場合、Metadataからマッチ情報をMatchIdにコピーする
+        if (response.Status == 200 && response.Data != null)
+        {
+            foreach (var matchData in response.Data)
+            {
+                if (matchData.Metadata != null && !string.IsNullOrEmpty(matchData.Metadata.Match_id))
+                {
+                    // MetadataのMatch_idをMatchIdフィールドにコピー
+                    matchData.MatchId = matchData.Metadata.Match_id;
+
+                    // その他の情報も必要に応じてコピー
+                    if (matchData.GameStart == 0 && !string.IsNullOrEmpty(matchData.Metadata.Started_at))
+                    {
+                        // ISO 8601形式の日時文字列をUnixタイムスタンプに変換
+                        if (DateTime.TryParse(matchData.Metadata.Started_at, out DateTime startTime))
+                        {
+                            matchData.GameStart = ((DateTimeOffset)startTime).ToUnixTimeMilliseconds();
+                        }
+                    }
+
+                    // キュー情報からゲームモードを設定
+                    if (string.IsNullOrEmpty(matchData.GameMode) && matchData.Metadata.Queue != null && !string.IsNullOrEmpty(matchData.Metadata.Queue.Id))
+                        matchData.GameMode = matchData.Metadata.Queue.Id;
+
+                    // マップ情報をコピー
+                    if (matchData.Metadata.Map != null)
+                    {
+                        if (string.IsNullOrEmpty(matchData.MapId) && !string.IsNullOrEmpty(matchData.Metadata.Map.Id))
+                            matchData.MapId = matchData.Metadata.Map.Id;
+                    }
+
+                    // キュー情報をコピー
+                    if (matchData.Metadata.Queue != null)
+                    {
+                        if (string.IsNullOrEmpty(matchData.QueueType) && !string.IsNullOrEmpty(matchData.Metadata.Queue.Id))
+                            matchData.QueueType = matchData.Metadata.Queue.Id;
+                    }
+                }
+            }
+        }
+
+        return response;
     }
 
     /// <inheritdoc />
@@ -161,7 +281,11 @@ public class HenrikApiClient : IHenrikApiClient
         if (string.IsNullOrEmpty(matchId))
             throw new ArgumentNullException(nameof(matchId));
 
-        string endpoint = $"/v2/match/{matchId}";
+        // Henrik APIの最新エンドポイントを使用
+        // 正しいエンドポイント: /valorant/v2/match/{matchId}
+        string endpoint = $"/valorant/v2/match/{matchId}";
+
+        _logger.LogInformation($"Henrik API リクエスト: {endpoint}");
 
         return await SendRequestAsync<MatchDetailsResponse>(endpoint, cancellationToken);
     }
@@ -172,7 +296,11 @@ public class HenrikApiClient : IHenrikApiClient
         if (string.IsNullOrEmpty(matchId))
             throw new ArgumentNullException(nameof(matchId));
 
-        string endpoint = $"/v2/match/saved/{matchId}";
+        // Henrik APIの最新エンドポイントを使用
+        // 正しいエンドポイント: /valorant/v2/match/saved/{matchId}
+        string endpoint = $"/valorant/v2/match/saved/{matchId}";
+
+        _logger.LogInformation($"Henrik API リクエスト: {endpoint}");
 
         return await SendRequestAsync<MatchDetailsResponse>(endpoint, cancellationToken);
     }
@@ -240,14 +368,33 @@ public class HenrikApiClient : IHenrikApiClient
                     }
 
                     string content = await response.Content.ReadAsStringAsync(cancellationToken);
-                    var result = JsonSerializer.Deserialize<T>(content, _jsonOptions);
-                    if (result == null)
-                    {
-                        throw new JsonException("APIレスポンスのデシリアライズに失敗しました");
-                    }
 
-                    _logger.LogDebug("APIリクエスト成功: {Endpoint}", endpoint);
-                    return result;
+                    try
+                    {
+                        // 特別な処理が必要な型かどうかを確認
+                        if (typeof(T) == typeof(MatchDetailsResponse))
+                        {
+                            // MatchDetailsResponseの場合、手動でデシリアライズ
+                            return (T)(object)DeserializeMatchDetailsResponse(content);
+                        }
+                        else
+                        {
+                            // 通常のデシリアライズ
+                            var result = JsonSerializer.Deserialize<T>(content, _jsonOptions);
+                            if (result == null)
+                            {
+                                throw new JsonException("APIレスポンスのデシリアライズに失敗しました");
+                            }
+
+                            _logger.LogDebug("APIリクエスト成功: {Endpoint}", endpoint);
+                            return result;
+                        }
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogError(ex, "JSONデシリアライズエラー: {Endpoint}, Content: {Content}", endpoint, content.Substring(0, Math.Min(500, content.Length)));
+                        throw;
+                    }
                 }
                 catch (HttpRequestException ex) when (retryCount < maxRetries &&
                     (ex.Message.Contains("TooManyRequests") ||
@@ -273,6 +420,334 @@ public class HenrikApiClient : IHenrikApiClient
         {
             // セマフォを解放
             _requestThrottler.Release();
+        }
+    }
+
+    /// <summary>
+    /// MatchDetailsResponseを手動でデシリアライズするメソッド
+    /// </summary>
+    /// <param name="json">JSONデータ</param>
+    /// <returns>デシリアライズされたMatchDetailsResponse</returns>
+    private MatchDetailsResponse DeserializeMatchDetailsResponse(string json)
+    {
+        _logger.LogInformation("MatchDetailsResponseを手動でデシリアライズします");
+
+        // 一度JsonDocumentとして解析
+        using (JsonDocument doc = JsonDocument.Parse(json))
+        {
+            // 基本的な構造を作成
+            var matchResponse = new MatchDetailsResponse
+            {
+                Status = doc.RootElement.GetProperty("status").GetInt32(),
+                Data = new MatchDetailsData
+                {
+                    Players = new List<MatchPlayerData>(),
+                    Teams = new List<MatchTeamData>(),
+                    Rounds = new List<MatchRoundData>()
+                }
+            };
+
+            // 必要なプロパティがあれば設定
+            if (doc.RootElement.TryGetProperty("data", out var dataElement))
+            {
+                // メタデータの処理
+                if (dataElement.TryGetProperty("metadata", out var metadataElement))
+                {
+                    try
+                    {
+                        matchResponse.Data.Metadata = JsonSerializer.Deserialize<MatchMetadata>(
+                            metadataElement.GetRawText(), _jsonOptions);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "メタデータのデシリアライズに失敗しました");
+                    }
+                }
+
+                // teamsの処理
+                if (dataElement.TryGetProperty("teams", out var teamsElement) &&
+                    teamsElement.ValueKind == JsonValueKind.Array)
+                {
+                    try
+                    {
+                        matchResponse.Data.Teams = JsonSerializer.Deserialize<List<MatchTeamData>>(
+                            teamsElement.GetRawText(), _jsonOptions) ?? new List<MatchTeamData>();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "チームデータのデシリアライズに失敗しました");
+                    }
+                }
+
+                // roundsの処理
+                if (dataElement.TryGetProperty("rounds", out var roundsElement) &&
+                    roundsElement.ValueKind == JsonValueKind.Array)
+                {
+                    try
+                    {
+                        matchResponse.Data.Rounds = JsonSerializer.Deserialize<List<MatchRoundData>>(
+                            roundsElement.GetRawText(), _jsonOptions) ?? new List<MatchRoundData>();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "ラウンドデータのデシリアライズに失敗しました");
+                    }
+                }
+
+                // playersの処理
+                if (dataElement.TryGetProperty("players", out var playersElement))
+                {
+                    // playersが配列の場合
+                    if (playersElement.ValueKind == JsonValueKind.Array)
+                    {
+                        _logger.LogInformation("playersフィールドは配列形式です");
+
+                        try
+                        {
+                            // 各プレイヤーを個別にデシリアライズして追加
+                            var playersList = new List<MatchPlayerData>();
+
+                            foreach (var playerElement in playersElement.EnumerateArray())
+                            {
+                                try
+                                {
+                                    // プロパティ名をスネークケースからキャメルケースに変換するオプションを設定
+                                    var playerOptions = new JsonSerializerOptions(_jsonOptions)
+                                    {
+                                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                                    };
+
+                                    // プレイヤーデータの変数をブロックの外で宣言
+                                    MatchPlayerData? playerData = null;
+
+                                    // プレイヤーデータをJSONドキュメントとして解析
+                                    using (JsonDocument playerDoc = JsonDocument.Parse(playerElement.GetRawText()))
+                                    {
+                                        // platformプロパティがオブジェクトかどうかを確認
+                                        bool hasPlatformObject = false;
+                                        if (playerDoc.RootElement.TryGetProperty("platform", out var platformElement))
+                                        {
+                                            hasPlatformObject = platformElement.ValueKind == JsonValueKind.Object;
+                                        }
+
+                                        if (hasPlatformObject)
+                                        {
+                                            // platformがオブジェクトの場合、一時的にJSONを修正
+                                            var jsonObj = System.Text.Json.JsonDocument.Parse(playerElement.GetRawText()).RootElement;
+                                            var modifiedJson = new System.Text.Json.Nodes.JsonObject();
+
+                                            // すべてのプロパティをコピー
+                                            foreach (var prop in jsonObj.EnumerateObject())
+                                            {
+                                                if (prop.Name == "platform" && prop.Value.ValueKind == JsonValueKind.Object)
+                                                {
+                                                    // platformがオブジェクトの場合、"pc"という文字列に置き換え
+                                                    modifiedJson.Add("platform", "pc");
+                                                    _logger.LogWarning("platformプロパティがオブジェクト型のため、文字列'pc'に置換しました");
+                                                }
+                                                else
+                                                {
+                                                    modifiedJson.Add(prop.Name, System.Text.Json.Nodes.JsonNode.Parse(prop.Value.GetRawText()));
+                                                }
+                                            }
+
+                                            // 修正したJSONをデシリアライズ
+                                            playerData = JsonSerializer.Deserialize<MatchPlayerData>(
+                                                modifiedJson.ToJsonString(), playerOptions);
+                                        }
+                                        else
+                                        {
+                                            // 通常のデシリアライズ
+                                            playerData = JsonSerializer.Deserialize<MatchPlayerData>(
+                                                playerElement.GetRawText(), playerOptions);
+                                        }
+                                    }
+
+                                    if (playerData != null)
+                                    {
+                                        playersList.Add(playerData);
+                                    }
+                                }
+                                catch (Exception playerEx)
+                                {
+                                    _logger.LogError(playerEx, "プレイヤーデータのデシリアライズに失敗しました");
+                                }
+                            }
+
+                            matchResponse.Data.Players = playersList;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "プレイヤーデータ配列の処理中にエラーが発生しました");
+                        }
+                    }
+                    // playersがオブジェクトの場合
+                    else if (playersElement.ValueKind == JsonValueKind.Object)
+                    {
+                        _logger.LogWarning("playersフィールドがオブジェクト形式です。APIレスポンス形式が変更された可能性があります。");
+
+                        try
+                        {
+                            // playersがオブジェクト形式の場合、各プロパティを個別にデシリアライズ
+                            var playersList = new List<MatchPlayerData>();
+
+                            foreach (var property in playersElement.EnumerateObject())
+                            {
+                                try
+                                {
+                                    // プロパティ値が配列の場合（チーム別プレイヤーリストなど）
+                                    if (property.Value.ValueKind == JsonValueKind.Array)
+                                    {
+                                        foreach (var playerElement in property.Value.EnumerateArray())
+                                        {
+                                            try
+                                            {
+                                                var playerOptions = new JsonSerializerOptions(_jsonOptions)
+                                                {
+                                                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                                                };
+
+                                                // プレイヤーデータの変数をブロックの外で宣言
+                                                MatchPlayerData? playerData = null;
+
+                                                // プレイヤーデータをJSONドキュメントとして解析
+                                                using (JsonDocument playerDoc = JsonDocument.Parse(playerElement.GetRawText()))
+                                                {
+                                                    // platformプロパティがオブジェクトかどうかを確認
+                                                    bool hasPlatformObject = false;
+                                                    if (playerDoc.RootElement.TryGetProperty("platform", out var platformElement))
+                                                    {
+                                                        hasPlatformObject = platformElement.ValueKind == JsonValueKind.Object;
+                                                    }
+
+                                                    if (hasPlatformObject)
+                                                    {
+                                                        // platformがオブジェクトの場合、一時的にJSONを修正
+                                                        var jsonObj = System.Text.Json.JsonDocument.Parse(playerElement.GetRawText()).RootElement;
+                                                        var modifiedJson = new System.Text.Json.Nodes.JsonObject();
+
+                                                        // すべてのプロパティをコピー
+                                                        foreach (var prop in jsonObj.EnumerateObject())
+                                                        {
+                                                            if (prop.Name == "platform" && prop.Value.ValueKind == JsonValueKind.Object)
+                                                            {
+                                                                // platformがオブジェクトの場合、"pc"という文字列に置き換え
+                                                                modifiedJson.Add("platform", "pc");
+                                                                _logger.LogWarning("platformプロパティがオブジェクト型のため、文字列'pc'に置換しました");
+                                                            }
+                                                            else
+                                                            {
+                                                                modifiedJson.Add(prop.Name, System.Text.Json.Nodes.JsonNode.Parse(prop.Value.GetRawText()));
+                                                            }
+                                                        }
+
+                                                        // 修正したJSONをデシリアライズ
+                                                        playerData = JsonSerializer.Deserialize<MatchPlayerData>(
+                                                            modifiedJson.ToJsonString(), playerOptions);
+                                                    }
+                                                    else
+                                                    {
+                                                        // 通常のデシリアライズ
+                                                        playerData = JsonSerializer.Deserialize<MatchPlayerData>(
+                                                            playerElement.GetRawText(), playerOptions);
+                                                    }
+                                                }
+
+                                                if (playerData != null)
+                                                {
+                                                    playersList.Add(playerData);
+                                                }
+                                            }
+                                            catch (Exception playerEx)
+                                            {
+                                                _logger.LogError(playerEx, "プレイヤー配列要素のデシリアライズに失敗しました: {PropertyName}", property.Name);
+                                            }
+                                        }
+                                    }
+                                    // プロパティ値がオブジェクトの場合（単一プレイヤーなど）
+                                    else if (property.Value.ValueKind == JsonValueKind.Object)
+                                    {
+                                        try
+                                        {
+                                            var playerOptions = new JsonSerializerOptions(_jsonOptions)
+                                            {
+                                                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                                            };
+
+                                            // プレイヤーデータの変数をブロックの外で宣言
+                                            MatchPlayerData? playerData = null;
+
+                                            // プレイヤーデータをJSONドキュメントとして解析
+                                            using (JsonDocument playerDoc = JsonDocument.Parse(property.Value.GetRawText()))
+                                            {
+                                                // platformプロパティがオブジェクトかどうかを確認
+                                                bool hasPlatformObject = false;
+                                                if (playerDoc.RootElement.TryGetProperty("platform", out var platformElement))
+                                                {
+                                                    hasPlatformObject = platformElement.ValueKind == JsonValueKind.Object;
+                                                }
+
+                                                if (hasPlatformObject)
+                                                {
+                                                    // platformがオブジェクトの場合、一時的にJSONを修正
+                                                    var jsonObj = System.Text.Json.JsonDocument.Parse(property.Value.GetRawText()).RootElement;
+                                                    var modifiedJson = new System.Text.Json.Nodes.JsonObject();
+
+                                                    // すべてのプロパティをコピー
+                                                    foreach (var prop in jsonObj.EnumerateObject())
+                                                    {
+                                                        if (prop.Name == "platform" && prop.Value.ValueKind == JsonValueKind.Object)
+                                                        {
+                                                            // platformがオブジェクトの場合、"pc"という文字列に置き換え
+                                                            modifiedJson.Add("platform", "pc");
+                                                            _logger.LogWarning("platformプロパティがオブジェクト型のため、文字列'pc'に置換しました");
+                                                        }
+                                                        else
+                                                        {
+                                                            modifiedJson.Add(prop.Name, System.Text.Json.Nodes.JsonNode.Parse(prop.Value.GetRawText()));
+                                                        }
+                                                    }
+
+                                                    // 修正したJSONをデシリアライズ
+                                                    playerData = JsonSerializer.Deserialize<MatchPlayerData>(
+                                                        modifiedJson.ToJsonString(), playerOptions);
+                                                }
+                                                else
+                                                {
+                                                    // 通常のデシリアライズ
+                                                    playerData = JsonSerializer.Deserialize<MatchPlayerData>(
+                                                        property.Value.GetRawText(), playerOptions);
+                                                }
+                                            }
+
+                                            if (playerData != null)
+                                            {
+                                                playersList.Add(playerData);
+                                            }
+                                        }
+                                        catch (Exception playerEx)
+                                        {
+                                            _logger.LogError(playerEx, "プレイヤーオブジェクトのデシリアライズに失敗しました: {PropertyName}", property.Name);
+                                        }
+                                    }
+                                }
+                                catch (Exception propEx)
+                                {
+                                    _logger.LogError(propEx, "プレイヤープロパティの処理中にエラーが発生しました: {PropertyName}", property.Name);
+                                }
+                            }
+
+                            matchResponse.Data.Players = playersList;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "playersオブジェクトの処理中にエラーが発生しました");
+                        }
+                    }
+                }
+            }
+
+            return matchResponse;
         }
     }
 }

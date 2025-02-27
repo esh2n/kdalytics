@@ -14,6 +14,8 @@ public class PlayersController : ControllerBase
 {
     private readonly IPlayerRepository _playerRepository;
     private readonly IPlayerRankRepository _playerRankRepository;
+    private readonly IMatchRepository _matchRepository;
+    private readonly IPlayerPerformanceRepository _performanceRepository;
     private readonly IHenrikApiClient _henrikApiClient;
     private readonly IValorantDataMapper _dataMapper;
     private readonly ILogger<PlayersController> _logger;
@@ -24,12 +26,16 @@ public class PlayersController : ControllerBase
     public PlayersController(
         IPlayerRepository playerRepository,
         IPlayerRankRepository playerRankRepository,
+        IMatchRepository matchRepository,
+        IPlayerPerformanceRepository performanceRepository,
         IHenrikApiClient henrikApiClient,
         IValorantDataMapper dataMapper,
         ILogger<PlayersController> logger)
     {
         _playerRepository = playerRepository;
         _playerRankRepository = playerRankRepository;
+        _matchRepository = matchRepository;
+        _performanceRepository = performanceRepository;
         _henrikApiClient = henrikApiClient;
         _dataMapper = dataMapper;
         _logger = logger;
@@ -149,6 +155,82 @@ public class PlayersController : ControllerBase
             var config = await _playerRepository.GetOrCreateTrackingConfigAsync(request.Puuid, cancellationToken);
             config = config with { IsActive = request.Track };
             await _playerRepository.UpdateTrackingConfigAsync(config, cancellationToken);
+
+            // トラッキングを有効にする場合、過去の試合データを取得
+            if (request.Track)
+            {
+                try
+                {
+                    _logger.LogInformation("プレイヤー {Puuid} の過去の試合データを取得します", request.Puuid);
+
+                    // 1シーズン分（約90日）の試合データを取得
+                    int matchCount = 100; // 最大取得数
+
+                    var apiResponse = await _henrikApiClient.GetPlayerMatchesByPuuidAsync(
+                        player.Region,
+                        request.Puuid,
+                        matchCount,
+                        "", // すべてのゲームモード
+                        cancellationToken);
+
+                    if (apiResponse.Status == 200 && apiResponse.Data.Count > 0)
+                    {
+                        _logger.LogInformation("プレイヤー {Puuid} の過去の試合データを {Count} 件取得しました",
+                            request.Puuid, apiResponse.Data.Count);
+
+                        // 各試合の詳細を取得して保存（非同期で並行処理）
+                        var tasks = new List<Task>();
+                        foreach (var matchData in apiResponse.Data)
+                        {
+                            // matchIdがnullまたは空でないことを確認
+                            if (string.IsNullOrEmpty(matchData.MatchId))
+                            {
+                                continue; // このマッチデータはスキップして次へ
+                            }
+
+                            // 試合詳細を取得して保存する処理を非同期タスクとして追加
+                            tasks.Add(Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    var matchDetailsResponse = await _henrikApiClient.GetMatchDetailsAsync(
+                                        matchData.MatchId, cancellationToken);
+
+                                    if (matchDetailsResponse.Status == 200 && matchDetailsResponse.Data != null)
+                                    {
+                                        var matchEntity = _dataMapper.MapToMatchEntity(matchDetailsResponse);
+                                        await _matchRepository.UpsertMatchAsync(matchEntity, cancellationToken);
+
+                                        // プレイヤーパフォーマンスも保存
+                                        var performances = _dataMapper.MapToPlayerPerformances(matchDetailsResponse);
+                                        foreach (var performance in performances)
+                                        {
+                                            await _performanceRepository.UpsertPerformanceAsync(performance, cancellationToken);
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, "試合 {MatchId} の詳細取得中にエラーが発生しました", matchData.MatchId);
+                                }
+                            }));
+                        }
+
+                        // すべてのタスクが完了するのを待つ（最大30秒）
+                        await Task.WhenAny(
+                            Task.WhenAll(tasks),
+                            Task.Delay(TimeSpan.FromSeconds(30))
+                        );
+
+                        _logger.LogInformation("プレイヤー {Puuid} の過去の試合データの取得と保存を完了しました", request.Puuid);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // 過去の試合データ取得中のエラーはログに記録するが、トラッキング設定自体は成功とする
+                    _logger.LogError(ex, "プレイヤー {Puuid} の過去の試合データ取得中にエラーが発生しました", request.Puuid);
+                }
+            }
 
             return Ok(PlayerResponseDto.FromEntity(updatedPlayer));
         }

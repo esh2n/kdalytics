@@ -43,7 +43,11 @@ public class ApiClient
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"API GET エラー: {ex.Message}");
+            Console.Error.WriteLine($"API GET エラー: {url} - {ex.Message}");
+            if (ex is HttpRequestException httpEx)
+            {
+                Console.Error.WriteLine($"HTTP ステータスコード: {httpEx.StatusCode}");
+            }
             return default;
         }
     }
@@ -72,7 +76,11 @@ public class ApiClient
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"API POST エラー: {ex.Message}");
+            Console.Error.WriteLine($"API POST エラー: {url} - {ex.Message}");
+            if (ex is HttpRequestException httpEx)
+            {
+                Console.Error.WriteLine($"HTTP ステータスコード: {httpEx.StatusCode}");
+            }
             return default;
         }
     }

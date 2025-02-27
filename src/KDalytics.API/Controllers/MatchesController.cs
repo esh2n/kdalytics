@@ -99,7 +99,7 @@ public class MatchesController : ControllerBase
     /// プレイヤーの最近の試合を取得
     /// </summary>
     /// <param name="puuid">プレイヤーID</param>
-    /// <param name="count">取得件数（デフォルト: 5）</param>
+    /// <param name="count">取得件数（デフォルト: 20）</param>
     /// <param name="cancellationToken">キャンセレーショントークン</param>
     /// <returns>試合情報のリスト</returns>
     [HttpGet("player/{puuid}/recent")]
@@ -107,7 +107,7 @@ public class MatchesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<List<MatchResponseDto>>> GetPlayerRecentMatches(
         string puuid,
-        [FromQuery] int count = 5,
+        [FromQuery] int count = 20,
         CancellationToken cancellationToken = default)
     {
         try
@@ -133,6 +133,13 @@ public class MatchesController : ControllerBase
                     // 各試合の詳細を取得して保存
                     foreach (var matchData in apiResponse.Data)
                     {
+                        // matchIdがnullまたは空でないことを確認
+                        if (string.IsNullOrEmpty(matchData.MatchId))
+                        {
+                            _logger.LogWarning("Henrik APIから取得した試合データにMatchIdが含まれていません。PUUID: {Puuid}", puuid);
+                            continue; // このマッチデータはスキップして次へ
+                        }
+
                         var matchDetailsResponse = await _henrikApiClient.GetMatchDetailsAsync(matchData.MatchId, cancellationToken);
                         if (matchDetailsResponse.Status == 200 && matchDetailsResponse.Data != null)
                         {
@@ -346,6 +353,79 @@ public class MatchesController : ControllerBase
         {
             _logger.LogError(ex, "プレイヤーマップ別試合件数取得中にエラーが発生しました。PUUID: {Puuid}", puuid);
             return StatusCode(StatusCodes.Status500InternalServerError, "プレイヤーマップ別試合件数の取得中にエラーが発生しました。");
+        }
+    }
+
+    /// <summary>
+    /// プレイヤーの過去の試合データを取得して保存
+    /// </summary>
+    /// <param name="puuid">プレイヤーID</param>
+    /// <param name="count">取得する試合数（デフォルト: 100）</param>
+    /// <param name="cancellationToken">キャンセレーショントークン</param>
+    /// <returns>取得した試合数</returns>
+    [HttpPost("player/{puuid}/fetch-historical")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(FetchHistoricalMatchesResponseDto))]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<FetchHistoricalMatchesResponseDto>> FetchPlayerHistoricalMatches(
+        string puuid,
+        [FromQuery] int count = 100, // デフォルトを100に増やす（1シーズン分）
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var player = await _playerRepository.GetPlayerByPuuidAsync(puuid, cancellationToken);
+            if (player == null)
+            {
+                return NotFound($"プレイヤーID '{puuid}' が見つかりません。");
+            }
+
+            // Henrik APIから過去の試合データを取得
+            // 1シーズン分のデータを取得するため、最大数を指定
+            var apiResponse = await _henrikApiClient.GetPlayerMatchesByPuuidAsync(player.Region, puuid, count, "", cancellationToken);
+            if (apiResponse.Status != 200 || apiResponse.Data.Count == 0)
+            {
+                return Ok(new FetchHistoricalMatchesResponseDto { MatchesProcessed = 0, TotalMatches = 0 });
+            }
+
+            int processedMatches = 0;
+
+            // 各試合の詳細を取得して保存
+            foreach (var matchData in apiResponse.Data)
+            {
+                // matchIdがnullまたは空でないことを確認
+                if (string.IsNullOrEmpty(matchData.MatchId))
+                {
+                    _logger.LogWarning("Henrik APIから取得した試合データにMatchIdが含まれていません。PUUID: {Puuid}", puuid);
+                    continue; // このマッチデータはスキップして次へ
+                }
+
+                var matchDetailsResponse = await _henrikApiClient.GetMatchDetailsAsync(matchData.MatchId, cancellationToken);
+                if (matchDetailsResponse.Status == 200 && matchDetailsResponse.Data != null)
+                {
+                    var matchEntity = _dataMapper.MapToMatchEntity(matchDetailsResponse);
+                    await _matchRepository.UpsertMatchAsync(matchEntity, cancellationToken);
+
+                    // プレイヤーパフォーマンスも保存
+                    var performances = _dataMapper.MapToPlayerPerformances(matchDetailsResponse);
+                    foreach (var performance in performances)
+                    {
+                        await _performanceRepository.UpsertPerformanceAsync(performance, cancellationToken);
+                    }
+
+                    processedMatches++;
+                }
+            }
+
+            return Ok(new FetchHistoricalMatchesResponseDto
+            {
+                MatchesProcessed = processedMatches,
+                TotalMatches = apiResponse.Data.Count
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "プレイヤーの過去の試合データ取得中にエラーが発生しました。PUUID: {Puuid}", puuid);
+            return StatusCode(StatusCodes.Status500InternalServerError, "プレイヤーの過去の試合データ取得中にエラーが発生しました。");
         }
     }
 }

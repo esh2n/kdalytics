@@ -218,3 +218,19 @@ public record MatchFilterRequest
     /// </summary>
     public int? Take { get; init; }
 }
+
+/// <summary>
+/// 過去の試合データ取得レスポンス
+/// </summary>
+public record FetchHistoricalMatchesResponseDto
+{
+    /// <summary>
+    /// 処理された試合数
+    /// </summary>
+    public int MatchesProcessed { get; init; }
+
+    /// <summary>
+    /// 合計試合数
+    /// </summary>
+    public int TotalMatches { get; init; }
+}

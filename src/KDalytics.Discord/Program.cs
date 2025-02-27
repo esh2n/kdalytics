@@ -107,6 +107,29 @@ public class Program
         await _client.LoginAsync(TokenType.Bot, token);
         await _client.StartAsync();
 
+        // APIの接続状態を確認
+        try
+        {
+            var apiClient = _services.GetRequiredService<ApiClient>();
+            var httpClient = new HttpClient();
+            var apiBaseUrl = _configuration["ApiBaseUrl"];
+            Console.WriteLine($"APIサーバーの接続確認: {apiBaseUrl}");
+
+            var response = await httpClient.GetAsync(apiBaseUrl + "/api/health");
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("APIサーバーに正常に接続できました。");
+            }
+            else
+            {
+                Console.WriteLine($"APIサーバーへの接続に問題があります。ステータスコード: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"APIサーバーへの接続確認中にエラーが発生しました: {ex.Message}");
+        }
+
         // インタラクションハンドラーの設定
         var interactionHandler = new InteractionHandler(_client, _interactions, _services, _configuration);
         await interactionHandler.InitializeAsync();

@@ -304,6 +304,131 @@ public class MatchlistData
     /// シーズンID
     /// </summary>
     public string SeasonId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// メタデータ（v4 APIレスポンス用）
+    /// </summary>
+    public MatchMetadataV4? Metadata { get; set; }
+}
+
+/// <summary>
+/// v4 API用の試合メタデータ
+/// </summary>
+public class MatchMetadataV4
+{
+    /// <summary>
+    /// 試合ID
+    /// </summary>
+    public string Match_id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// マップ情報
+    /// </summary>
+    public MapInfo? Map { get; set; }
+
+    /// <summary>
+    /// ゲームバージョン
+    /// </summary>
+    public string Game_version { get; set; } = string.Empty;
+
+    /// <summary>
+    /// ゲーム時間（ミリ秒）
+    /// </summary>
+    public long Game_length_in_ms { get; set; }
+
+    /// <summary>
+    /// ゲーム開始時間
+    /// </summary>
+    public string Started_at { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 完了フラグ
+    /// </summary>
+    public bool Is_completed { get; set; }
+
+    /// <summary>
+    /// キュー情報
+    /// </summary>
+    public QueueInfo? Queue { get; set; }
+
+    /// <summary>
+    /// シーズン情報
+    /// </summary>
+    public SeasonInfo? Season { get; set; }
+
+    /// <summary>
+    /// プラットフォーム
+    /// </summary>
+    public string Platform { get; set; } = string.Empty;
+
+    /// <summary>
+    /// リージョン
+    /// </summary>
+    public string Region { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// シーズン情報
+/// </summary>
+public class SeasonInfo
+{
+    /// <summary>
+    /// シーズンID
+    /// </summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// シーズン短縮名
+    /// </summary>
+    public string Short { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// マップ情報
+/// </summary>
+public class MapInfo
+{
+    /// <summary>
+    /// マップID
+    /// </summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// マップ名
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// キュー情報
+/// </summary>
+public class QueueInfo
+{
+    /// <summary>
+    /// キューID
+    /// </summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// キュー名
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// モード情報
+/// </summary>
+public class ModeInfo
+{
+    /// <summary>
+    /// モードID
+    /// </summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// モード名
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -422,28 +547,185 @@ public class MatchPlayerData
     /// <summary>
     /// チームID
     /// </summary>
-    public string Team { get; set; } = string.Empty;
+    public string Team_id { get; set; } = string.Empty;
 
     /// <summary>
-    /// レベル
+    /// プラットフォーム
     /// </summary>
-    public int Level { get; set; }
+    public string Platform { get; set; } = string.Empty;
 
     /// <summary>
-    /// 使用キャラクター
+    /// パーティID
     /// </summary>
-    public string Character { get; set; } = string.Empty;
+    public string Party_id { get; set; } = string.Empty;
 
     /// <summary>
-    /// 現在のランク（ティア数値）
+    /// エージェント情報
     /// </summary>
-    public int CurrentTier { get; set; }
+    public AgentInfo? Agent { get; set; }
 
     /// <summary>
-    /// 現在のランク名
+    /// 統計情報
     /// </summary>
-    public string CurrentTierPatched { get; set; } = string.Empty;
+    public PlayerStats? Stats { get; set; }
 
+    /// <summary>
+    /// アビリティ使用回数
+    /// </summary>
+    public AbilityCasts? Ability_casts { get; set; }
+
+    /// <summary>
+    /// ティア情報
+    /// </summary>
+    public TierInfo? Tier { get; set; }
+
+    /// <summary>
+    /// カスタマイズ情報
+    /// </summary>
+    public CustomizationInfo? Customization { get; set; }
+
+    /// <summary>
+    /// アカウントレベル
+    /// </summary>
+    public int Account_level { get; set; }
+
+    /// <summary>
+    /// セッションプレイ時間（ミリ秒）
+    /// </summary>
+    public long Session_playtime_in_ms { get; set; }
+
+    /// <summary>
+    /// 行動情報
+    /// </summary>
+    public BehaviorInfo? Behavior { get; set; }
+
+    /// <summary>
+    /// 経済情報
+    /// </summary>
+    public EconomyInfo? Economy { get; set; }
+
+    // 後方互換性のためのプロパティ
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string Team
+    {
+        get => Team_id;
+        set => Team_id = value;
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string Character
+    {
+        get => Agent?.Name ?? string.Empty;
+        set { if (Agent == null) Agent = new AgentInfo(); Agent.Name = value; }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int Level
+    {
+        get => Account_level;
+        set => Account_level = value;
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int CurrentTier
+    {
+        get => Tier?.Id ?? 0;
+        set { if (Tier == null) Tier = new TierInfo(); Tier.Id = value; }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string CurrentTierPatched
+    {
+        get => Tier?.Name ?? string.Empty;
+        set { if (Tier == null) Tier = new TierInfo(); Tier.Name = value; }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int Score
+    {
+        get => Stats?.Score ?? 0;
+        set { if (Stats == null) Stats = new PlayerStats(); Stats.Score = value; }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int Kills
+    {
+        get => Stats?.Kills ?? 0;
+        set { if (Stats == null) Stats = new PlayerStats(); Stats.Kills = value; }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int Deaths
+    {
+        get => Stats?.Deaths ?? 0;
+        set { if (Stats == null) Stats = new PlayerStats(); Stats.Deaths = value; }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int Assists
+    {
+        get => Stats?.Assists ?? 0;
+        set { if (Stats == null) Stats = new PlayerStats(); Stats.Assists = value; }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int Headshots
+    {
+        get => Stats?.Headshots ?? 0;
+        set { if (Stats == null) Stats = new PlayerStats(); Stats.Headshots = value; }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int Bodyshots
+    {
+        get => Stats?.Bodyshots ?? 0;
+        set { if (Stats == null) Stats = new PlayerStats(); Stats.Bodyshots = value; }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int Legshots
+    {
+        get => Stats?.Legshots ?? 0;
+        set { if (Stats == null) Stats = new PlayerStats(); Stats.Legshots = value; }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int Damage
+    {
+        get => Stats?.Damage?.Dealt ?? 0;
+        set
+        {
+            if (Stats == null) Stats = new PlayerStats();
+            if (Stats.Damage == null) Stats.Damage = new DamageInfo();
+            Stats.Damage.Dealt = value;
+        }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int Shutdowns { get; set; }
+}
+
+/// <summary>
+/// エージェント情報
+/// </summary>
+public class AgentInfo
+{
+    /// <summary>
+    /// エージェントID
+    /// </summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// エージェント名
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// プレイヤー統計情報
+/// </summary>
+public class PlayerStats
+{
     /// <summary>
     /// スコア
     /// </summary>
@@ -465,29 +747,172 @@ public class MatchPlayerData
     public int Assists { get; set; }
 
     /// <summary>
-    /// シャットダウン数
-    /// </summary>
-    public int Shutdowns { get; set; }
-
-    /// <summary>
-    /// 与ダメージ
-    /// </summary>
-    public int Damage { get; set; }
-
-    /// <summary>
-    /// ヘッドショット
+    /// ヘッドショット数
     /// </summary>
     public int Headshots { get; set; }
 
     /// <summary>
-    /// ボディショット
+    /// ボディショット数
     /// </summary>
     public int Bodyshots { get; set; }
 
     /// <summary>
-    /// レッグショット
+    /// レッグショット数
     /// </summary>
     public int Legshots { get; set; }
+
+    /// <summary>
+    /// ダメージ情報
+    /// </summary>
+    public DamageInfo? Damage { get; set; }
+}
+
+/// <summary>
+/// ダメージ情報
+/// </summary>
+public class DamageInfo
+{
+    /// <summary>
+    /// 与ダメージ
+    /// </summary>
+    public int Dealt { get; set; }
+
+    /// <summary>
+    /// 被ダメージ
+    /// </summary>
+    public int Received { get; set; }
+}
+
+/// <summary>
+/// アビリティ使用回数
+/// </summary>
+public class AbilityCasts
+{
+    /// <summary>
+    /// グレネード使用回数
+    /// </summary>
+    public int Grenade { get; set; }
+
+    /// <summary>
+    /// アビリティ1使用回数
+    /// </summary>
+    public int Ability1 { get; set; }
+
+    /// <summary>
+    /// アビリティ2使用回数
+    /// </summary>
+    public int Ability2 { get; set; }
+
+    /// <summary>
+    /// アルティメット使用回数
+    /// </summary>
+    public int Ultimate { get; set; }
+}
+
+/// <summary>
+/// ティア情報
+/// </summary>
+public class TierInfo
+{
+    /// <summary>
+    /// ティアID
+    /// </summary>
+    public int Id { get; set; }
+
+    /// <summary>
+    /// ティア名
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// カスタマイズ情報
+/// </summary>
+public class CustomizationInfo
+{
+    /// <summary>
+    /// カードID
+    /// </summary>
+    public string Card { get; set; } = string.Empty;
+
+    /// <summary>
+    /// タイトルID
+    /// </summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// レベルボーダーID
+    /// </summary>
+    public string? Preferred_level_border { get; set; }
+}
+
+/// <summary>
+/// 行動情報
+/// </summary>
+public class BehaviorInfo
+{
+    /// <summary>
+    /// AFK回数
+    /// </summary>
+    public float Afk_rounds { get; set; }
+
+    /// <summary>
+    /// フレンドリーファイア情報
+    /// </summary>
+    public FriendlyFireInfo? Friendly_fire { get; set; }
+
+    /// <summary>
+    /// スポーンにいたラウンド数
+    /// </summary>
+    public float Rounds_in_spawn { get; set; }
+}
+
+/// <summary>
+/// フレンドリーファイア情報
+/// </summary>
+public class FriendlyFireInfo
+{
+    /// <summary>
+    /// 受けたフレンドリーファイア
+    /// </summary>
+    public float Incoming { get; set; }
+
+    /// <summary>
+    /// 与えたフレンドリーファイア
+    /// </summary>
+    public float Outgoing { get; set; }
+}
+
+/// <summary>
+/// 経済情報
+/// </summary>
+public class EconomyInfo
+{
+    /// <summary>
+    /// 消費情報
+    /// </summary>
+    public EconomyValueInfo? Spent { get; set; }
+
+    /// <summary>
+    /// 装備価値情報
+    /// </summary>
+    public EconomyValueInfo? Loadout_value { get; set; }
+}
+
+/// <summary>
+/// 経済価値情報
+/// </summary>
+public class EconomyValueInfo
+{
+    /// <summary>
+    /// 合計値
+    /// </summary>
+    public int Overall { get; set; }
+
+    /// <summary>
+    /// 平均値
+    /// </summary>
+    public float Average { get; set; }
 }
 
 /// <summary>

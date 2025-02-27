@@ -132,4 +132,35 @@ public class MatchApiClient
 
         return await _apiClient.GetAsync<Dictionary<string, int>>(url, cancellationToken);
     }
+
+    /// <summary>
+    /// プレイヤーの過去の試合データを取得
+    /// </summary>
+    /// <param name="puuid">プレイヤーID</param>
+    /// <param name="count">取得する試合数（デフォルト: 100）</param>
+    /// <param name="cancellationToken">キャンセレーショントークン</param>
+    /// <returns>取得結果</returns>
+    public async Task<FetchHistoricalMatchesResponseDto> FetchPlayerHistoricalMatchesAsync(
+        string puuid,
+        int count = 100,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(puuid))
+        {
+            throw new ArgumentNullException(nameof(puuid));
+        }
+
+        try
+        {
+            return await _apiClient.PostAsync<object, FetchHistoricalMatchesResponseDto>(
+                $"{BaseUrl}/player/{puuid}/fetch-historical?count={count}",
+                null,
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"過去の試合データ取得中にエラーが発生: {ex.Message}");
+            return new FetchHistoricalMatchesResponseDto { MatchesProcessed = 0, TotalMatches = 0 };
+        }
+    }
 }
