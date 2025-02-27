@@ -1,0 +1,19 @@
+{
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "refresh_interval": "5s"
+    },
+    "mappings": {
+        "properties": {
+            "puuid": { "type": "keyword" },
+            "name": { "type": "keyword" },
+            "tag": { "type": "keyword" },
+            "region": { "type": "keyword" },
+            "accountLevel": { "type": "integer" },
+            "lastUpdated": { "type": "date" },
+            "cardId": { "type": "keyword" },
+            "titleId": { "type": "keyword" }
+        }
+    }
+}

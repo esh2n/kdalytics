@@ -1,0 +1,20 @@
+{
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "refresh_interval": "5s"
+    },
+    "mappings": {
+        "properties": {
+            "puuid": { "type": "keyword" },
+            "season": { "type": "keyword" },
+            "rank": { "type": "keyword" },
+            "rankTier": { "type": "integer" },
+            "mmr": { "type": "integer" },
+            "rrChangeToLastGame": { "type": "integer" },
+            "games": { "type": "integer" },
+            "wins": { "type": "integer" },
+            "timestamp": { "type": "date" }
+        }
+    }
+}

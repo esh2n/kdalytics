@@ -85,11 +85,11 @@
                         @_performanceStats.EndDate.ToLocalTime().ToString("yyyy/MM/dd")</span>
                     <div class="period-selector">
                         <button class="btn btn-sm @(_selectedPeriod == "week" ? "btn-primary" : "btn-outline-primary")"
-                            @onclick="() => ChangePeriod(" week")">1週間</button>
+                            @onclick='() => ChangePeriod("week")'>1週間</button>
                         <button class="btn btn-sm @(_selectedPeriod == "month" ? "btn-primary" : "btn-outline-primary")"
-                            @onclick="() => ChangePeriod(" month")">1ヶ月</button>
+                            @onclick='() => ChangePeriod("month")'>1ヶ月</button>
                         <button class="btn btn-sm @(_selectedPeriod == "season" ? "btn-primary" : "btn-outline-primary")"
-                            @onclick="() => ChangePeriod(" season")">シーズン</button>
+                            @onclick='() => ChangePeriod("season")'>シーズン</button>
                     </div>
                 </div>
 
@@ -98,8 +98,8 @@
                         <h4>試合</h4>
                         <div class="stats-value">@_performanceStats.MatchesPlayed</div>
                         <div class="stats-subvalue">
-                            <span class="text-success">@_performanceStats.MatchesWon勝</span> /
-                            <span class="text-danger">@_performanceStats.Losses敗</span>
+                            <span class="text-success">@_performanceStats.MatchesWon</span> /
+                            <span class="text-danger">@_performanceStats.Losses</span>
                         </div>
                         <div class="stats-subvalue">勝率: @_performanceStats.WinRateDisplay</div>
                     </div>

@@ -1,0 +1,34 @@
+{
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "refresh_interval": "5s"
+    },
+    "mappings": {
+        "properties": {
+            "matchId": { "type": "keyword" },
+            "mapId": { "type": "keyword" },
+            "gameMode": { "type": "keyword" },
+            "startTime": { "type": "date" },
+            "endTime": { "type": "date" },
+            "seasonId": { "type": "keyword" },
+            "region": { "type": "keyword" },
+            "teams": {
+                "properties": {
+                    "teamId": { "type": "keyword" },
+                    "won": { "type": "boolean" },
+                    "roundsWon": { "type": "integer" },
+                    "roundsPlayed": { "type": "integer" }
+                }
+            },
+            "rounds": {
+                "properties": {
+                    "roundNum": { "type": "integer" },
+                    "winningTeam": { "type": "keyword" },
+                    "bombPlanted": { "type": "boolean" },
+                    "bombDefused": { "type": "boolean" }
+                }
+            }
+        }
+    }
+}

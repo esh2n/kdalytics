@@ -1,0 +1,30 @@
+{
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "refresh_interval": "5s"
+    },
+    "mappings": {
+        "properties": {
+            "matchId": { "type": "keyword" },
+            "puuid": { "type": "keyword" },
+            "teamId": { "type": "keyword" },
+            "agent": { "type": "keyword" },
+            "kills": { "type": "integer" },
+            "deaths": { "type": "integer" },
+            "assists": { "type": "integer" },
+            "score": { "type": "integer" },
+            "headshots": { "type": "integer" },
+            "bodyshots": { "type": "integer" },
+            "legshots": { "type": "integer" },
+            "damageDealt": { "type": "integer" },
+            "damageTaken": { "type": "integer" },
+            "econRating": { "type": "float" },
+            "firstBloods": { "type": "integer" },
+            "plants": { "type": "integer" },
+            "defuses": { "type": "integer" },
+            "won": { "type": "boolean" },
+            "startTime": { "type": "date" }
+        }
+    }
+}

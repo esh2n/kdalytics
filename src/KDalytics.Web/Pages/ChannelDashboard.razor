@@ -73,11 +73,11 @@
                     <h2>プレイヤー統計</h2>
                     <div class="stats-period-selector">
                         <button class="btn @(_selectedPeriod == "week" ? "btn-primary" : "btn-outline-primary")"
-                            @onclick="() => ChangePeriod(" week")">1週間</button>
+                            @onclick='() => ChangePeriod("week")'>1週間</button>
                         <button class="btn @(_selectedPeriod == "month" ? "btn-primary" : "btn-outline-primary")"
-                            @onclick="() => ChangePeriod(" month")">1ヶ月</button>
+                            @onclick='() => ChangePeriod("month")'>1ヶ月</button>
                         <button class="btn @(_selectedPeriod == "season" ? "btn-primary" : "btn-outline-primary")"
-                            @onclick="() => ChangePeriod(" season")">シーズン</button>
+                            @onclick='() => ChangePeriod("season")'>シーズン</button>
                     </div>
 
                     <div class="stats-table-container">
