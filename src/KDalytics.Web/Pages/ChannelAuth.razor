@@ -1,0 +1,205 @@
+@page "/channel/{ChannelId}"
+@using KDalytics.Web.Models
+@using KDalytics.Web.Services
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>KDalytics - チャンネル認証</PageTitle>
+
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1>KDalytics チャンネル認証</h1>
+            <p>Discordチャンネルのダッシュボードにアクセスするには、アクセスコードを入力してください。</p>
+        </div>
+
+        <div class="auth-form">
+            @if (_isAuthenticating)
+            {
+                <div class="loading-container">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">認証中...</span>
+                    </div>
+                    <p>認証中...</p>
+                </div>
+            }
+            else if (_authError != null)
+            {
+                <div class="alert alert-danger">
+                    <strong>エラー:</strong> @_authError
+                </div>
+            }
+
+            <div class="form-group">
+                <label for="accessCode">アクセスコード</label>
+                <input type="text" class="form-control" id="accessCode" @bind="_accessCode" placeholder="アクセスコードを入力" />
+                <small class="form-text text-muted">アクセスコードはDiscordの「!channel dashboard」コマンドで確認できます。</small>
+            </div>
+
+            <div class="form-group mt-3">
+                <button class="btn btn-primary w-100" @onclick="AuthenticateAsync"
+                    disabled="@(_isAuthenticating || string.IsNullOrWhiteSpace(_accessCode))">
+                    ダッシュボードにアクセス
+                </button>
+            </div>
+        </div>
+
+        <div class="auth-footer">
+            <p>Discordに戻る場合は、<a href="https://discord.com" target="_blank">こちら</a>をクリックしてください。</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string ChannelId { get; set; } = "";
+
+    private string _accessCode = "";
+    private bool _isAuthenticating = false;
+    private string? _authError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // ローカルストレージからアクセストークンを取得
+        var token = await GetStoredTokenAsync();
+        if (!string.IsNullOrEmpty(token))
+        {
+            // トークンの検証
+            if (await ValidateTokenAsync(token))
+            {
+                // 認証成功、ダッシュボードにリダイレクト
+                NavigateToDashboard();
+            }
+        }
+    }
+
+    private async Task AuthenticateAsync()
+    {
+        _isAuthenticating = true;
+        _authError = null;
+
+        try
+        {
+            // TODO: 実際にはAPIを呼び出してアクセスコードを検証する
+            // 現在はモックの検証ロジック
+            await Task.Delay(1000); // APIリクエストをシミュレート
+
+            // 簡易的な検証（実際の実装ではより安全な方法を使用すべき）
+            if (_accessCode.Length >= 6)
+            {
+                // 認証成功、トークンを保存
+                var token = GenerateToken();
+                await StoreTokenAsync(token);
+
+                // ダッシュボードにリダイレクト
+                NavigateToDashboard();
+            }
+            else
+            {
+                _authError = "無効なアクセスコードです。正しいアクセスコードを入力してください。";
+            }
+        }
+        catch (Exception ex)
+        {
+            _authError = $"認証中にエラーが発生しました: {ex.Message}";
+        }
+        finally
+        {
+            _isAuthenticating = false;
+        }
+    }
+
+    private void NavigateToDashboard()
+    {
+        NavigationManager.NavigateTo($"/channel/{ChannelId}/dashboard");
+    }
+
+    // トークン生成（実際の実装ではより安全な方法を使用すべき）
+    private string GenerateToken()
+    {
+        var random = new Random();
+        var bytes = new byte[32];
+        random.NextBytes(bytes);
+        return Convert.ToBase64String(bytes);
+    }
+
+    // ローカルストレージからトークンを取得
+    private async Task<string> GetStoredTokenAsync()
+    {
+        try
+        {
+            return await JSRuntime.InvokeAsync<string>("localStorage.getItem", $"kdalytics_token_{ChannelId}") ?? "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    // ローカルストレージにトークンを保存
+    private async Task StoreTokenAsync(string token)
+    {
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"kdalytics_token_{ChannelId}", token);
+    }
+
+    // トークンの検証（実際の実装ではAPIを呼び出して検証する）
+    private async Task<bool> ValidateTokenAsync(string token)
+    {
+        // TODO: 実際にはAPIを呼び出してトークンを検証する
+        // 現在はモックの検証ロジック
+        await Task.Delay(500); // APIリクエストをシミュレート
+        return !string.IsNullOrEmpty(token);
+    }
+}
+
+<style>
+    .auth-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+        background-color: #f5f5f5;
+    }
+
+    .auth-card {
+        width: 100%;
+        max-width: 500px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .auth-header {
+        padding: 20px;
+        background-color: #0f1923;
+        color: white;
+        text-align: center;
+    }
+
+    .auth-header h1 {
+        margin-bottom: 10px;
+        font-size: 1.8rem;
+    }
+
+    .auth-form {
+        padding: 20px;
+    }
+
+    .auth-footer {
+        padding: 15px 20px;
+        background-color: #f8f9fa;
+        border-top: 1px solid #eee;
+        text-align: center;
+        font-size: 0.9rem;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+</style>

@@ -1,128 +1,176 @@
-# KDalytics - Valorant戦績トラッカー + Discord連携
+# KDalytics - Valorant 戦績トラッカー + Discord連携
 
-KDalyticsは、Valorantの戦績データを取得・分析し、プレイヤー統計情報を可視化するWebアプリケーションと、Discord Bot連携を組み合わせたプロジェクトです。
+Valorantの戦績データを取得し、プレイヤーの統計情報を可視化するWebアプリケーションです。Discord Botを通じて試合結果や戦績の要約を通知する機能も提供します。さらに、Discordチャンネルごとに独自のダッシュボードを持つことができ、チームやフレンドグループでの戦績共有が容易になります。
 
-## プロジェクト概要
+## 機能
 
-Riot APIからValorantの戦績データを収集し、プレイヤーの統計情報をWeb上で可視化します。また、Discord Bot連携により、試合結果や戦績情報をDiscordサーバーに通知する機能を提供します。
+### Webアプリケーション
+- プレイヤーの戦績データの取得と表示
+- 試合履歴の詳細表示と分析
+- エージェント別・マップ別のパフォーマンス統計
+- チャンネル専用ダッシュボード（Discord連携）
+- ランク変動の追跡
 
-### 主要機能
+### Discord Bot
+- プレイヤー検索と登録
+- 試合結果の通知と詳細表示
+- KDAランキングなどの統計情報
+- チャンネル専用ダッシュボードへのアクセス提供
 
-- **戦績取得**: Riot APIからプレイヤー戦績データを自動収集
-- **データ分析**: エージェント別、マップ別の成績分析と可視化
-- **Webダッシュボード**: 戦績の詳細な可視化と分析
-- **Discord連携**: 試合結果の自動通知、戦績検索コマンド
+## 技術スタック
 
-## システム構成
+- **バックエンド**: ASP.NET Core, C#
+- **フロントエンド**: Blazor
+- **データベース**: Elasticsearch
+- **API連携**: Henrik API, Tracker Network API
+- **通知**: Discord Bot (Discord.Net)
+- **デプロイ**: Azure
 
-- **バックエンド**: ASP.NET Core 9.0
-- **フロントエンド**: Blazor WebAssembly
-- **データ処理**: Azure Functions
-- **データストア**: Elasticsearch
-- **Discord連携**: DSharpPlus
-- **CI/CD**: GitHub Actions
+## 使用方法
 
-## プロジェクト構造
+### Discord Botの使用
 
-```
-/
-├── src/                          # ソースコード
-│   ├── KDalytics.API/            # ASP.NET Core API
-│   ├── KDalytics.Core/           # ドメインモデルとビジネスロジック
-│   ├── KDalytics.Infrastructure/ # 外部サービス統合
-│   ├── KDalytics.Functions/      # Azure Functions
-│   ├── KDalytics.Discord/        # Discord Bot実装
-│   └── KDalytics.Web/            # Blazorフロントエンド
-│
-├── tests/                        # テスト
-│   ├── KDalytics.Core.Tests/     # コアロジックのユニットテスト
-│   ├── KDalytics.API.Tests/      # API統合テスト
-│   └── KDalytics.E2E.Tests/      # エンドツーエンドテスト
-│
-├── tools/                        # ユーティリティスクリプト
-│   ├── setup-local.ps1           # Windows環境セットアップ
-│   └── setup-local.sh            # macOS/Linux環境セットアップ
-│
-├── docker/                       # Docker設定
-│   └── docker-compose.yml        # 開発環境用Docker Compose
-│
-└── .github/                      # GitHub設定
-    └── workflows/                # GitHub Actions設定
-```
+1. Botをサーバーに招待
+2. チャンネルの登録
+   ```
+   !channel register
+   ```
+3. プレイヤーの登録
+   ```
+   !player track <名前> <タグ>
+   ```
+4. 統計情報の確認
+   ```
+   !player stats <名前> <タグ> [期間]
+   ```
+5. 試合履歴の確認
+   ```
+   !match recent <名前> <タグ> [件数]
+   ```
+6. ランキングの確認
+   ```
+   !ranking kda [期間]
+   ```
+7. ダッシュボードへのアクセス
+   ```
+   !channel dashboard
+   ```
+
+### Webダッシュボードの使用
+
+1. Discord Botから取得したURLにアクセス
+2. アクセスコードを入力してログイン
+3. チャンネルに登録されたプレイヤーの統計情報を閲覧
+4. 各プレイヤーの詳細ページや試合詳細ページを確認
 
 ## 開発環境のセットアップ
 
 ### 前提条件
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop)
-- [Visual Studio 2022](https://visualstudio.microsoft.com/) または [Visual Studio Code](https://code.visualstudio.com/)
+- .NET 9.0 SDK
+- Docker Desktop
+- Visual Studio 2022 または Visual Studio Code
+- Discord Bot Token（Discord Developer Portalから取得）
 
-### セットアップ手順
+### 手順
 
-#### Windows環境
-
-PowerShellを管理者権限で実行し、以下のコマンドを実行します：
-
-```powershell
-.\tools\setup-local.ps1
-```
-
-#### macOS/Linux環境
-
-ターミナルで以下のコマンドを実行します：
+1. リポジトリをクローン
 
 ```bash
-./tools/setup-local.sh
+git clone https://github.com/esh2n/kdalytics.git
+cd kdalytics
 ```
 
-これにより、以下の処理が自動的に行われます：
-- 必要なNuGetパッケージの復元
-- ソリューションのビルド
-- Elasticsearchなどのサービスを含むDockerコンテナの起動
+2. 依存関係のインストール
 
-### 開発サーバーの起動
+```bash
+dotnet restore
+```
 
-#### APIサーバー
+3. Elasticsearchの起動
+
+```bash
+cd docker
+docker-compose up -d
+```
+
+4. Elasticsearchのインデックスを作成
+
+```bash
+./tools/setup-elasticsearch-indices.sh
+```
+
+5. テストデータの生成（オプション）
+
+```bash
+./tools/generate-test-data.sh
+```
+
+6. Discord Bot設定
+
+Discord Botのトークンを`src/KDalytics.Discord/appsettings.json`に設定します：
+
+```json
+{
+  "ApiBaseUrl": "http://localhost:5000",
+  "WebAppUrl": "http://localhost:5173",
+  "DiscordToken": "YOUR_DISCORD_BOT_TOKEN_HERE",
+  "AccessCodeSecret": "YOUR_SECRET_KEY_HERE"
+}
+```
+
+7. APIの起動
 
 ```bash
 dotnet run --project src/KDalytics.API/KDalytics.API.csproj
 ```
 
-#### Webフロントエンド
+8. Webフロントエンドの起動
 
 ```bash
 dotnet run --project src/KDalytics.Web/KDalytics.Web.csproj
 ```
 
-### テストの実行
+9. Discord Botの起動
+
+```bash
+dotnet run --project src/KDalytics.Discord/KDalytics.Discord.csproj
+```
+
+## APIエンドポイント
+
+APIの詳細なドキュメントは、APIを起動した後に以下のURLでSwagger UIを通じて確認できます：
+
+```
+http://localhost:5167/swagger
+```
+
+主要なエンドポイント：
+
+- `GET /api/players/{puuid}` - プレイヤー情報の取得
+- `POST /api/players/search` - 名前とタグでプレイヤーを検索
+- `GET /api/matches/player/{puuid}/recent` - プレイヤーの最近の試合を取得
+- `GET /api/performances/player/{puuid}/agents` - エージェント別パフォーマンスを取得
+
+## Elasticsearchの設定
+
+Elasticsearchの詳細な設定方法については、[Elasticsearchセットアップガイド](docs/elasticsearch-setup.md)を参照してください。
+
+## テスト
 
 ```bash
 dotnet test
 ```
 
-## 環境変数の設定
-
-開発環境で使用する環境変数は、`src/KDalytics.API/appsettings.Development.json`ファイルに設定します。
-
-必要な環境変数：
-- `RiotApi:ApiKey`: Riot API開発者キー
-- `Discord:BotToken`: Discord Bot Token
-- `Elasticsearch:Url`: Elasticsearchのエンドポイント
-
-## 貢献方法
-
-1. このリポジトリをフォークする
-2. 新しいブランチを作成する (`git checkout -b feature/amazing-feature`)
-3. 変更をコミットする (`git commit -m 'Add some amazing feature'`)
-4. ブランチにプッシュする (`git push origin feature/amazing-feature`)
-5. Pull Requestを作成する
-
 ## ライセンス
 
-このプロジェクトはMITライセンスの下で公開されています。
+このプロジェクトはMITライセンスの下で公開されています。詳細は[LICENSE](LICENSE)ファイルを参照してください。
+
+## 貢献
+
+プルリクエストは歓迎します。大きな変更を加える前には、まずissueを開いて変更内容について議論してください。
 
 ## 謝辞
 
-- [Riot Games API](https://developer.riotgames.com/) - ゲームデータの提供
-- [Discord API](https://discord.com/developers/docs/intro) - Discord統合のためのAPI
+- [Henrik-3/unofficial-valorant-api](https://github.com/Henrik-3/unofficial-valorant-api) - 非公式Valorant APIの提供
+- [Tracker Network](https://tracker.gg/) - 戦績データの提供

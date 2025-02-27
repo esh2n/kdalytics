@@ -1,0 +1,575 @@
+@page "/player/{Puuid}"
+@using KDalytics.Web.Models
+@using KDalytics.Web.Services
+@inject PlayerApiClient PlayerApi
+@inject MatchApiClient MatchApi
+@inject PerformanceApiClient PerformanceApi
+@inject NavigationManager NavigationManager
+
+<PageTitle>KDalytics - プレイヤープロフィール</PageTitle>
+
+<div class="profile-container">
+    @if (_isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">読み込み中...</span>
+            </div>
+            <p>データを読み込んでいます...</p>
+        </div>
+    }
+    else if (_player == null)
+    {
+        <div class="error-container">
+            <h3>プレイヤーが見つかりません</h3>
+            <p>指定されたプレイヤーIDが見つかりませんでした。</p>
+            <button class="btn btn-primary" @onclick="NavigateToHome">ホームに戻る</button>
+        </div>
+    }
+    else
+    {
+        <div class="profile-header">
+            <div class="profile-info">
+                <h1>@_player.DisplayName</h1>
+                <div class="profile-details">
+                    <span class="region-badge">@_player.Region</span>
+                    <span class="level-badge">Lv.@_player.AccountLevel</span>
+                    @if (_playerRank != null)
+                    {
+                        <span class="rank-badge">@_playerRank.CurrentTierName</span>
+                    }
+                </div>
+            </div>
+            <div class="profile-actions">
+                <button class="btn @(_player.IsTracked ? "btn-danger" : "btn-success")" @onclick="ToggleTracking">
+                    @(_player.IsTracked ? "トラッキング解除" : "トラッキング開始")
+                </button>
+            </div>
+        </div>
+
+        @if (_playerRank != null)
+        {
+            <div class="rank-info-container">
+                <div class="rank-info">
+                    <h3>ランク情報</h3>
+                    <div class="rank-details">
+                        <div class="rank-item">
+                            <span class="rank-label">ランク</span>
+                            <span class="rank-value">@_playerRank.CurrentTierName</span>
+                        </div>
+                        <div class="rank-item">
+                            <span class="rank-label">MMR</span>
+                            <span class="rank-value">@_playerRank.Mmr</span>
+                        </div>
+                        <div class="rank-item">
+                            <span class="rank-label">最終変動</span>
+                            <span class="rank-value @(_playerRank.MmrChange >= 0 ? "text-success" : "text-danger")">
+                                @(_playerRank.MmrChange >= 0 ? "+" : "")@_playerRank.MmrChange
+                            </span>
+                        </div>
+                        <div class="rank-item">
+                            <span class="rank-label">ティア内ランキング</span>
+                            <span class="rank-value">@_playerRank.RankingInTier / 100</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (_performanceStats != null)
+        {
+            <div class="stats-container">
+                <h3>パフォーマンス統計</h3>
+                <div class="stats-period">
+                    <span>期間: @_performanceStats.StartDate.ToLocalTime().ToString("yyyy/MM/dd") -
+                        @_performanceStats.EndDate.ToLocalTime().ToString("yyyy/MM/dd")</span>
+                    <div class="period-selector">
+                        <button class="btn btn-sm @(_selectedPeriod == "week" ? "btn-primary" : "btn-outline-primary")"
+                            @onclick="() => ChangePeriod(" week")">1週間</button>
+                        <button class="btn btn-sm @(_selectedPeriod == "month" ? "btn-primary" : "btn-outline-primary")"
+                            @onclick="() => ChangePeriod(" month")">1ヶ月</button>
+                        <button class="btn btn-sm @(_selectedPeriod == "season" ? "btn-primary" : "btn-outline-primary")"
+                            @onclick="() => ChangePeriod(" season")">シーズン</button>
+                    </div>
+                </div>
+
+                <div class="stats-overview">
+                    <div class="stats-card">
+                        <h4>試合</h4>
+                        <div class="stats-value">@_performanceStats.MatchesPlayed</div>
+                        <div class="stats-subvalue">
+                            <span class="text-success">@_performanceStats.MatchesWon勝</span> /
+                            <span class="text-danger">@_performanceStats.Losses敗</span>
+                        </div>
+                        <div class="stats-subvalue">勝率: @_performanceStats.WinRateDisplay</div>
+                    </div>
+                    <div class="stats-card">
+                        <h4>KDA</h4>
+                        <div class="stats-value">@_performanceStats.KdaDisplay</div>
+                        <div class="stats-subvalue">K/D: @_performanceStats.KdRatioDisplay</div>
+                        <div class="stats-subvalue">KDA: @_performanceStats.KdaRatioDisplay</div>
+                    </div>
+                    <div class="stats-card">
+                        <h4>ヘッドショット</h4>
+                        <div class="stats-value">@_performanceStats.HeadshotPercentageDisplay</div>
+                    </div>
+                    <div class="stats-card">
+                        <h4>最も使用したエージェント</h4>
+                        <div class="stats-value">@_performanceStats.MostPlayedAgent</div>
+                    </div>
+                </div>
+
+                @if (_performanceStats.AgentStats.Count > 0)
+                {
+                    <div class="agent-stats">
+                        <h4>エージェント別統計</h4>
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>エージェント</th>
+                                        <th>試合数</th>
+                                        <th>勝率</th>
+                                        <th>KDA</th>
+                                        <th>K/D</th>
+                                        <th>HS%</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var agent in _performanceStats.AgentStats.OrderByDescending(a => a.Value.GamesPlayed))
+                                    {
+                                        <tr>
+                                            <td>@agent.Key</td>
+                                            <td>@agent.Value.GamesPlayed</td>
+                                            <td>@agent.Value.WinRateDisplay</td>
+                                            <td>@agent.Value.KdaDisplay</td>
+                                            <td>@agent.Value.KdRatioDisplay</td>
+                                            <td>@agent.Value.HeadshotPercentageDisplay</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+
+                @if (_performanceStats.MapStats.Count > 0)
+                {
+                    <div class="map-stats">
+                        <h4>マップ別統計</h4>
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>マップ</th>
+                                        <th>試合数</th>
+                                        <th>勝率</th>
+                                        <th>KDA</th>
+                                        <th>K/D</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var map in _performanceStats.MapStats.OrderByDescending(m => m.Value.GamesPlayed))
+                                    {
+                                        <tr>
+                                            <td>@map.Key</td>
+                                            <td>@map.Value.GamesPlayed</td>
+                                            <td>@map.Value.WinRateDisplay</td>
+                                            <td>@map.Value.KdaDisplay</td>
+                                            <td>@map.Value.KdRatioDisplay</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (_recentMatches != null && _recentMatches.Count > 0)
+        {
+            <div class="matches-container">
+                <h3>最近の試合</h3>
+                <div class="match-list">
+                    @foreach (var match in _recentMatches)
+                    {
+                        var performance = match.Players.FirstOrDefault(p => p.Puuid == Puuid);
+                        var team = match.Teams.FirstOrDefault(t => t.TeamId == performance?.TeamId);
+                        var isWin = team?.HasWon ?? false;
+
+                        <div class="match-card @(isWin ? "match-win" : "match-loss")">
+                            <div class="match-card-header">
+                                <div>
+                                    <h4>@match.MapName</h4>
+                                    <span class="game-mode-badge">@match.GameMode</span>
+                                </div>
+                                <div class="match-result">
+                                    @if (isWin)
+                                    {
+                                        <span class="win-badge">勝利</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="loss-badge">敗北</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="match-card-body">
+                                <div class="match-info">
+                                    <div>
+                                        <p>日時: @match.FormattedStartTime</p>
+                                        <p>試合時間: @match.FormattedGameLength</p>
+                                    </div>
+                                    @if (performance != null)
+                                    {
+                                        <div class="performance-info">
+                                            <p>エージェント: @performance.AgentName</p>
+                                            <p>KDA: @performance.KdaDisplay</p>
+                                            <p>スコア: @performance.Score</p>
+                                        </div>
+                                    }
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary"
+                                    @onclick="() => ViewMatchDetails(match.MatchId)">詳細を表示</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-primary" @onclick="LoadMoreMatches">もっと見る</button>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Puuid { get; set; } = "";
+
+    private PlayerModel? _player;
+    private PlayerRankModel? _playerRank;
+    private PerformanceStatsModel? _performanceStats;
+    private List<MatchModel>? _recentMatches;
+    private bool _isLoading = true;
+    private string _selectedPeriod = "month";
+    private int _matchesCount = 5;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPlayerData();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(Puuid))
+        {
+            await LoadPlayerData();
+        }
+    }
+
+    private async Task LoadPlayerData()
+    {
+        _isLoading = true;
+        try
+        {
+            _player = await PlayerApi.GetPlayerByPuuidAsync(Puuid);
+            if (_player != null)
+            {
+                await Task.WhenAll(
+                LoadPlayerRank(),
+                LoadPerformanceStats(),
+                LoadRecentMatches()
+                );
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"プレイヤーデータの取得中にエラーが発生しました: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadPlayerRank()
+    {
+        try
+        {
+            _playerRank = await PlayerApi.GetPlayerRankAsync(Puuid);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"ランク情報の取得中にエラーが発生しました: {ex.Message}");
+        }
+    }
+
+    private async Task LoadPerformanceStats()
+    {
+        try
+        {
+            DateTime from = DateTime.UtcNow;
+            switch (_selectedPeriod)
+            {
+                case "week":
+                    from = DateTime.UtcNow.AddDays(-7);
+                    break;
+                case "month":
+                    from = DateTime.UtcNow.AddDays(-30);
+                    break;
+                case "season":
+                    from = DateTime.UtcNow.AddDays(-90);
+                    break;
+            }
+
+            _performanceStats = await PerformanceApi.GetPlayerPerformanceStatsAsync(Puuid, from);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"パフォーマンス統計の取得中にエラーが発生しました: {ex.Message}");
+        }
+    }
+
+    private async Task LoadRecentMatches()
+    {
+        try
+        {
+            _recentMatches = await MatchApi.GetPlayerRecentMatchesAsync(Puuid, _matchesCount);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"最近の試合の取得中にエラーが発生しました: {ex.Message}");
+        }
+    }
+
+    private async Task ChangePeriod(string period)
+    {
+        _selectedPeriod = period;
+        await LoadPerformanceStats();
+    }
+
+    private async Task ToggleTracking()
+    {
+        if (_player != null)
+        {
+            try
+            {
+                var updatedPlayer = await PlayerApi.UpdateTrackingAsync(_player.Puuid, !_player.IsTracked);
+                if (updatedPlayer != null)
+                {
+                    _player = updatedPlayer;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"トラッキング設定の更新中にエラーが発生しました: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task LoadMoreMatches()
+    {
+        _matchesCount += 5;
+        await LoadRecentMatches();
+    }
+
+    private void ViewMatchDetails(string matchId)
+    {
+        NavigationManager.NavigateTo($"/match/{matchId}");
+    }
+
+    private void NavigateToHome()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+}
+
+<style>
+    .profile-container {
+        padding: 20px;
+    }
+
+    .loading-container,
+    .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 300px;
+    }
+
+    .profile-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .profile-details {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .region-badge,
+    .level-badge,
+    .rank-badge {
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+
+    .region-badge {
+        background-color: #0f1923;
+        color: white;
+    }
+
+    .level-badge {
+        background-color: #31c4f3;
+        color: white;
+    }
+
+    .rank-badge {
+        background-color: #ff4655;
+        color: white;
+    }
+
+    .rank-info-container {
+        margin-bottom: 30px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .rank-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+
+    .rank-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .rank-label {
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .rank-value {
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+
+    .stats-container {
+        margin-bottom: 30px;
+    }
+
+    .stats-period {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 15px 0;
+    }
+
+    .period-selector {
+        display: flex;
+        gap: 10px;
+    }
+
+    .stats-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stats-card {
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .stats-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+
+    .stats-subvalue {
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .match-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+
+    .match-card {
+        border-radius: 8px;
+        padding: 15px;
+        background-color: #fff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .match-win {
+        border-left: 5px solid #4caf50;
+    }
+
+    .match-loss {
+        border-left: 5px solid #f44336;
+    }
+
+    .match-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .game-mode-badge {
+        background-color: #ff4655;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+    }
+
+    .win-badge {
+        background-color: #4caf50;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+
+    .loss-badge {
+        background-color: #f44336;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+
+    .match-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .performance-info {
+        text-align: right;
+    }
+
+    .table-responsive {
+        margin-top: 15px;
+    }
+</style>

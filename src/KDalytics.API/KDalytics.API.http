@@ -1,6 +1,145 @@
 @KDalytics.API_HostAddress = http://localhost:5167
 
-GET {{KDalytics.API_HostAddress}}/weatherforecast/
+### プレイヤー関連API
+
+### プレイヤーIDでプレイヤー情報を取得
+# @name getPlayerById
+GET {{KDalytics.API_HostAddress}}/api/players/a1b2c3d4-e5f6-7890-abcd-ef1234567890
 Accept: application/json
 
-###
+### 名前とタグでプレイヤー情報を検索
+# @name searchPlayerByNameTag
+POST {{KDalytics.API_HostAddress}}/api/players/search
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "esh2n",
+  "tag": "JP1"
+}
+
+### プレイヤーのトラッキング設定を更新
+# @name updatePlayerTracking
+POST {{KDalytics.API_HostAddress}}/api/players/tracking
+Content-Type: application/json
+Accept: application/json
+
+{
+  "puuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "track": true
+}
+
+### トラッキング対象のプレイヤー一覧を取得
+# @name getTrackedPlayers
+GET {{KDalytics.API_HostAddress}}/api/players/tracked
+Accept: application/json
+
+### プレイヤーのランク情報を取得
+# @name getPlayerRank
+GET {{KDalytics.API_HostAddress}}/api/players/a1b2c3d4-e5f6-7890-abcd-ef1234567890/rank
+Accept: application/json
+
+### プレイヤーのランク履歴を取得
+# @name getPlayerRankHistory
+GET {{KDalytics.API_HostAddress}}/api/players/a1b2c3d4-e5f6-7890-abcd-ef1234567890/rank/history?from=2025-01-01T00:00:00Z&to=2025-02-27T00:00:00Z
+Accept: application/json
+
+### 試合関連API
+
+### 試合IDで試合情報を取得
+# @name getMatchById
+GET {{KDalytics.API_HostAddress}}/api/matches/m1n2o3p4-q5r6-7890-stuv-wx1234567890
+Accept: application/json
+
+### プレイヤーの最近の試合を取得
+# @name getRecentMatches
+GET {{KDalytics.API_HostAddress}}/api/matches/player/a1b2c3d4-e5f6-7890-abcd-ef1234567890/recent?count=5
+Accept: application/json
+
+### プレイヤーの試合をフィルタして取得
+# @name filterMatches
+POST {{KDalytics.API_HostAddress}}/api/matches/filter
+Content-Type: application/json
+Accept: application/json
+
+{
+  "puuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "from": "2025-01-01T00:00:00Z",
+  "to": "2025-02-27T00:00:00Z",
+  "gameMode": "Competitive",
+  "skip": 0,
+  "take": 10
+}
+
+### 試合内のプレイヤーパフォーマンスを取得
+# @name getMatchPerformances
+GET {{KDalytics.API_HostAddress}}/api/matches/m1n2o3p4-q5r6-7890-stuv-wx1234567890/performances
+Accept: application/json
+
+### プレイヤーの特定試合でのパフォーマンスを取得
+# @name getPlayerMatchPerformance
+GET {{KDalytics.API_HostAddress}}/api/matches/m1n2o3p4-q5r6-7890-stuv-wx1234567890/player/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+Accept: application/json
+
+### 日別の試合件数を取得
+# @name getMatchCountByDay
+GET {{KDalytics.API_HostAddress}}/api/matches/player/a1b2c3d4-e5f6-7890-abcd-ef1234567890/count-by-day?days=30
+Accept: application/json
+
+### マップごとの試合件数を取得
+# @name getMatchCountByMap
+GET {{KDalytics.API_HostAddress}}/api/matches/player/a1b2c3d4-e5f6-7890-abcd-ef1234567890/count-by-map?from=2025-01-01T00:00:00Z&to=2025-02-27T00:00:00Z
+Accept: application/json
+
+### パフォーマンス関連API
+
+### プレイヤーのパフォーマンス統計を取得
+# @name getPlayerPerformanceStats
+POST {{KDalytics.API_HostAddress}}/api/performances/stats
+Content-Type: application/json
+Accept: application/json
+
+{
+  "puuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "from": "2025-01-01T00:00:00Z",
+  "to": "2025-02-27T00:00:00Z",
+  "gameMode": "Competitive"
+}
+
+### プレイヤーのエージェント別パフォーマンスを取得
+# @name getPlayerAgentPerformances
+GET {{KDalytics.API_HostAddress}}/api/performances/player/a1b2c3d4-e5f6-7890-abcd-ef1234567890/agents?from=2025-01-01T00:00:00Z&to=2025-02-27T00:00:00Z&minGames=3
+Accept: application/json
+
+### プレイヤーのマップ別パフォーマンスを取得
+# @name getPlayerMapPerformances
+GET {{KDalytics.API_HostAddress}}/api/performances/player/a1b2c3d4-e5f6-7890-abcd-ef1234567890/maps?from=2025-01-01T00:00:00Z&to=2025-02-27T00:00:00Z&minGames=3
+Accept: application/json
+
+### 複数プレイヤーのKDAランキングを取得
+# @name getKdaRanking
+POST {{KDalytics.API_HostAddress}}/api/performances/kda-ranking
+Content-Type: application/json
+Accept: application/json
+
+{
+  "puuids": [
+    "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "b2c3d4e5-f6g7-8901-hijk-lm2345678901",
+    "c3d4e5f6-g7h8-9012-nopq-rs3456789012"
+  ],
+  "from": "2025-01-01T00:00:00Z",
+  "to": "2025-02-27T00:00:00Z",
+  "gameMode": "Competitive",
+  "minGames": 5
+}
+
+### Elasticsearchヘルスチェック
+# @name elasticsearchHealth
+GET http://localhost:9200/_cluster/health
+Accept: application/json
+
+### Elasticsearchインデックス一覧
+# @name elasticsearchIndices
+GET http://localhost:9200/_cat/indices?v
+Accept: application/json
