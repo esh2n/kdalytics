@@ -28,6 +28,11 @@ public record PlayerRankEntity
     public int RankingInTier { get; init; }
 
     /// <summary>
+    /// 現在のMMR（マッチメイキングレーティング）値
+    /// </summary>
+    public int Mmr { get; init; }
+
+    /// <summary>
     /// 最後の試合でのMMR変動値
     /// </summary>
     public int MmrChangeToLastGame { get; init; }

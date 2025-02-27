@@ -13,22 +13,22 @@ public record PerformanceStats
     /// <summary>
     /// 集計期間（開始）
     /// </summary>
-    public DateTime From { get; init; }
+    public DateTime StartDate { get; init; }
 
     /// <summary>
     /// 集計期間（終了）
     /// </summary>
-    public DateTime To { get; init; }
+    public DateTime EndDate { get; init; }
 
     /// <summary>
     /// 総試合数
     /// </summary>
-    public int TotalMatches { get; init; }
+    public int MatchesPlayed { get; init; }
 
     /// <summary>
     /// 勝利数
     /// </summary>
-    public int Wins { get; init; }
+    public int MatchesWon { get; init; }
 
     /// <summary>
     /// 敗北数
@@ -38,7 +38,7 @@ public record PerformanceStats
     /// <summary>
     /// 勝率
     /// </summary>
-    public float WinRate => TotalMatches > 0 ? (float)Wins / TotalMatches : 0;
+    public float WinRate { get; init; }
 
     /// <summary>
     /// 総キル数
@@ -56,6 +56,76 @@ public record PerformanceStats
     public int TotalAssists { get; init; }
 
     /// <summary>
+    /// 総スコア
+    /// </summary>
+    public int TotalScore { get; init; }
+
+    /// <summary>
+    /// 総ダメージ
+    /// </summary>
+    public int TotalDamage { get; init; }
+
+    /// <summary>
+    /// 総ヘッドショット数
+    /// </summary>
+    public int TotalHeadshots { get; init; }
+
+    /// <summary>
+    /// 総ボディショット数
+    /// </summary>
+    public int TotalBodyshots { get; init; }
+
+    /// <summary>
+    /// 総レッグショット数
+    /// </summary>
+    public int TotalLegshots { get; init; }
+
+    /// <summary>
+    /// 平均キル数
+    /// </summary>
+    public float AverageKills { get; init; }
+
+    /// <summary>
+    /// 平均デス数
+    /// </summary>
+    public float AverageDeaths { get; init; }
+
+    /// <summary>
+    /// 平均アシスト数
+    /// </summary>
+    public float AverageAssists { get; init; }
+
+    /// <summary>
+    /// 平均スコア
+    /// </summary>
+    public float AverageScore { get; init; }
+
+    /// <summary>
+    /// 平均ダメージ
+    /// </summary>
+    public float AverageDamage { get; init; }
+
+    /// <summary>
+    /// 平均ヘッドショット数
+    /// </summary>
+    public float AverageHeadshots { get; init; }
+
+    /// <summary>
+    /// 平均ボディショット数
+    /// </summary>
+    public float AverageBodyshots { get; init; }
+
+    /// <summary>
+    /// 平均レッグショット数
+    /// </summary>
+    public float AverageLegshots { get; init; }
+
+    /// <summary>
+    /// K/Dレシオ
+    /// </summary>
+    public float KdRatio { get; init; }
+
+    /// <summary>
     /// KDAレシオ
     /// </summary>
     public float KdaRatio => TotalDeaths > 0
@@ -66,6 +136,11 @@ public record PerformanceStats
     /// ヘッドショット率
     /// </summary>
     public float HeadshotPercentage { get; init; }
+
+    /// <summary>
+    /// 最も使用したエージェント
+    /// </summary>
+    public string MostPlayedAgent { get; init; } = string.Empty;
 
     /// <summary>
     /// エージェント別統計
@@ -83,7 +158,7 @@ public record PerformanceStats
     /// <returns>「2023/01/01 - 2023/01/31」形式の日付範囲</returns>
     public string GetPeriodText()
     {
-        return $"{From:yyyy/MM/dd} - {To:yyyy/MM/dd}";
+        return $"{StartDate:yyyy/MM/dd} - {EndDate:yyyy/MM/dd}";
     }
 
     /// <summary>
@@ -92,7 +167,7 @@ public record PerformanceStats
     /// <returns>「60% (12勝8敗)」形式の文字列</returns>
     public string GetWinRateDisplay()
     {
-        return $"{WinRate * 100:F1}% ({Wins}勝{Losses}敗)";
+        return $"{WinRate * 100:F1}% ({MatchesWon}勝{Losses}敗)";
     }
 
     /// <summary>
@@ -110,12 +185,12 @@ public record PerformanceStats
     /// <returns>「平均 K/D/A: 12.0/4.5/7.8 (4.4)」形式の文字列</returns>
     public string GetAvgKdaDisplay()
     {
-        if (TotalMatches <= 0)
+        if (MatchesPlayed <= 0)
             return "データなし";
 
-        float avgKills = (float)TotalKills / TotalMatches;
-        float avgDeaths = (float)TotalDeaths / TotalMatches;
-        float avgAssists = (float)TotalAssists / TotalMatches;
+        float avgKills = (float)TotalKills / MatchesPlayed;
+        float avgDeaths = (float)TotalDeaths / MatchesPlayed;
+        float avgAssists = (float)TotalAssists / MatchesPlayed;
 
         return $"平均 K/D/A: {avgKills:F1}/{avgDeaths:F1}/{avgAssists:F1} ({KdaRatio:F1})";
     }
@@ -128,7 +203,7 @@ public record PerformanceStats
     public AgentPerformance? GetBestAgent(int minGames = 3)
     {
         return AgentStats.Values
-            .Where(a => a.TimesPlayed >= minGames)
+            .Where(a => a.GamesPlayed >= minGames)
             .OrderByDescending(a => a.WinRate)
             .ThenByDescending(a => a.GetAvgKdaRatio())
             .FirstOrDefault();
@@ -142,7 +217,7 @@ public record PerformanceStats
     public MapPerformance? GetBestMap(int minGames = 3)
     {
         return MapStats.Values
-            .Where(m => m.TimesPlayed >= minGames)
+            .Where(m => m.GamesPlayed >= minGames)
             .OrderByDescending(m => m.WinRate)
             .ThenByDescending(m => m.GetAvgKdaRatio())
             .FirstOrDefault();

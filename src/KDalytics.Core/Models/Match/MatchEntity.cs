@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using KDalytics.Core.Enums;
 using KDalytics.Core.Models.Performance;
 
@@ -84,17 +87,17 @@ public record MatchEntity
         {
             return gameModeEnum switch
             {
-                GameMode.Competitive => "コンペティティブ",
-                GameMode.Unrated => "アンレーテッド",
-                GameMode.SpikeRush => "スパイクラッシュ",
-                GameMode.Deathmatch => "デスマッチ",
-                GameMode.Escalation => "エスカレーション",
-                GameMode.Custom => "カスタム",
-                GameMode.Replication => "レプリケーション",
-                GameMode.Snowball => "スノーボールファイト",
-                GameMode.SwiftPlay => "スワットアットフライ",
-                GameMode.TeamDeathmatch => "チームデスマッチ",
-                GameMode.Premier => "プレミア",
+                Enums.GameMode.Competitive => "コンペティティブ",
+                Enums.GameMode.Unrated => "アンレーテッド",
+                Enums.GameMode.SpikeRush => "スパイクラッシュ",
+                Enums.GameMode.Deathmatch => "デスマッチ",
+                Enums.GameMode.Escalation => "エスカレーション",
+                Enums.GameMode.Custom => "カスタム",
+                Enums.GameMode.Replication => "レプリケーション",
+                Enums.GameMode.Snowball => "スノーボールファイト",
+                Enums.GameMode.SwiftPlay => "スイフトプレイ",
+                Enums.GameMode.TeamDeathmatch => "チームデスマッチ",
+                Enums.GameMode.Premier => "プレミア",
                 _ => GameMode
             };
         }
@@ -110,7 +113,7 @@ public record MatchEntity
             "custom" => "カスタム",
             "replication" => "レプリケーション",
             "snowball" => "スノーボールファイト",
-            "swiftplay" => "スワットアットフライ",
+            "swiftplay" => "スイフトプレイ",
             "teamdeathmatch" => "チームデスマッチ",
             "premier" => "プレミア",
             _ => GameMode

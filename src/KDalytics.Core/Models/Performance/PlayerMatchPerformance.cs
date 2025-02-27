@@ -41,6 +41,11 @@ public record PlayerMatchPerformance
     public string AgentName { get; init; } = string.Empty;
 
     /// <summary>
+    /// 試合開始時刻
+    /// </summary>
+    public DateTime GameStartTimestamp { get; init; }
+
+    /// <summary>
     /// 総合スコア
     /// </summary>
     public int Score { get; init; }

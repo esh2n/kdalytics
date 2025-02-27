@@ -11,14 +11,19 @@ public record MapPerformance
     public string MapName { get; init; } = string.Empty;
 
     /// <summary>
+    /// マップID
+    /// </summary>
+    public string MapId { get; init; } = string.Empty;
+
+    /// <summary>
     /// プレイ回数
     /// </summary>
-    public int TimesPlayed { get; init; }
+    public int GamesPlayed { get; init; }
 
     /// <summary>
     /// 勝利数
     /// </summary>
-    public int Wins { get; init; }
+    public int GamesWon { get; init; }
 
     /// <summary>
     /// 敗北数
@@ -28,27 +33,67 @@ public record MapPerformance
     /// <summary>
     /// 勝率
     /// </summary>
-    public float WinRate => TimesPlayed > 0 ? (float)Wins / TimesPlayed : 0;
+    public float WinRate { get; init; }
 
     /// <summary>
-    /// 平均スコア
+    /// 総キル数
     /// </summary>
-    public float AvgScore { get; init; }
+    public int TotalKills { get; init; }
+
+    /// <summary>
+    /// 総デス数
+    /// </summary>
+    public int TotalDeaths { get; init; }
+
+    /// <summary>
+    /// 総アシスト数
+    /// </summary>
+    public int TotalAssists { get; init; }
+
+    /// <summary>
+    /// K/Dレシオ
+    /// </summary>
+    public float KdRatio { get; init; }
 
     /// <summary>
     /// 平均キル
     /// </summary>
-    public float AvgKills { get; init; }
+    public float AverageKills { get; init; }
 
     /// <summary>
     /// 平均デス
     /// </summary>
-    public float AvgDeaths { get; init; }
+    public float AverageDeaths { get; init; }
 
     /// <summary>
     /// 平均アシスト
     /// </summary>
-    public float AvgAssists { get; init; }
+    public float AverageAssists { get; init; }
+
+    /// <summary>
+    /// 総ダメージ
+    /// </summary>
+    public int TotalDamage { get; init; }
+
+    /// <summary>
+    /// 総ヘッドショット数
+    /// </summary>
+    public int TotalHeadshots { get; init; }
+
+    /// <summary>
+    /// 総ボディショット数
+    /// </summary>
+    public int TotalBodyshots { get; init; }
+
+    /// <summary>
+    /// 総レッグショット数
+    /// </summary>
+    public int TotalLegshots { get; init; }
+
+    /// <summary>
+    /// ヘッドショット率
+    /// </summary>
+    public float HeadshotPercentage { get; init; }
 
     /// <summary>
     /// 平均KDAレシオを計算します
@@ -56,10 +101,10 @@ public record MapPerformance
     /// <returns>平均KDAレシオ = (平均キル + 平均アシスト) / 平均デス</returns>
     public float GetAvgKdaRatio()
     {
-        if (AvgDeaths <= 0)
-            return AvgKills + AvgAssists;
+        if (AverageDeaths <= 0)
+            return AverageKills + AverageAssists;
 
-        return (AvgKills + AvgAssists) / AvgDeaths;
+        return (AverageKills + AverageAssists) / AverageDeaths;
     }
 
     /// <summary>
@@ -68,7 +113,7 @@ public record MapPerformance
     /// <returns>「60% (12勝8敗)」形式の文字列</returns>
     public string GetWinRateDisplay()
     {
-        return $"{WinRate * 100:F1}% ({Wins}勝{Losses}敗)";
+        return $"{WinRate * 100:F1}% ({GamesWon}勝{Losses}敗)";
     }
 
     /// <summary>
@@ -77,7 +122,7 @@ public record MapPerformance
     /// <returns>「K/D/A: 12.2/4.5/7.8 (4.44)」形式の文字列</returns>
     public string GetKdaDisplay()
     {
-        return $"K/D/A: {AvgKills:F1}/{AvgDeaths:F1}/{AvgAssists:F1} ({GetAvgKdaRatio():F2})";
+        return $"K/D/A: {AverageKills:F1}/{AverageDeaths:F1}/{AverageAssists:F1} ({GetAvgKdaRatio():F2})";
     }
 
     /// <summary>
@@ -91,24 +136,31 @@ public record MapPerformance
         if (MapName != other.MapName)
             return this;
 
-        int totalTimesPlayed = TimesPlayed + other.TimesPlayed;
+        int totalGamesPlayed = GamesPlayed + other.GamesPlayed;
 
         // 新しい平均を計算
-        float newAvgScore = (AvgScore * TimesPlayed + other.AvgScore * other.TimesPlayed) / totalTimesPlayed;
-        float newAvgKills = (AvgKills * TimesPlayed + other.AvgKills * other.TimesPlayed) / totalTimesPlayed;
-        float newAvgDeaths = (AvgDeaths * TimesPlayed + other.AvgDeaths * other.TimesPlayed) / totalTimesPlayed;
-        float newAvgAssists = (AvgAssists * TimesPlayed + other.AvgAssists * other.TimesPlayed) / totalTimesPlayed;
+        float newAvgKills = (AverageKills * GamesPlayed + other.AverageKills * other.GamesPlayed) / totalGamesPlayed;
+        float newAvgDeaths = (AverageDeaths * GamesPlayed + other.AverageDeaths * other.GamesPlayed) / totalGamesPlayed;
+        float newAvgAssists = (AverageAssists * GamesPlayed + other.AverageAssists * other.GamesPlayed) / totalGamesPlayed;
 
         return new MapPerformance
         {
             MapName = MapName,
-            TimesPlayed = totalTimesPlayed,
-            Wins = Wins + other.Wins,
+            MapId = MapId,
+            GamesPlayed = totalGamesPlayed,
+            GamesWon = GamesWon + other.GamesWon,
             Losses = Losses + other.Losses,
-            AvgScore = newAvgScore,
-            AvgKills = newAvgKills,
-            AvgDeaths = newAvgDeaths,
-            AvgAssists = newAvgAssists
+            WinRate = totalGamesPlayed > 0 ? (float)(GamesWon + other.GamesWon) / totalGamesPlayed : 0,
+            TotalKills = TotalKills + other.TotalKills,
+            TotalDeaths = TotalDeaths + other.TotalDeaths,
+            TotalAssists = TotalAssists + other.TotalAssists,
+            KdRatio = (TotalDeaths + other.TotalDeaths) > 0 ? (float)(TotalKills + other.TotalKills) / (TotalDeaths + other.TotalDeaths) : (TotalKills + other.TotalKills),
+            AverageKills = newAvgKills,
+            AverageDeaths = newAvgDeaths,
+            AverageAssists = newAvgAssists,
+            TotalDamage = TotalDamage + other.TotalDamage,
+            TotalHeadshots = TotalHeadshots + other.TotalHeadshots,
+            HeadshotPercentage = (TotalHeadshots + other.TotalHeadshots) > 0 ? (float)(TotalHeadshots + other.TotalHeadshots) / ((TotalHeadshots + other.TotalHeadshots) + (TotalBodyshots + other.TotalBodyshots) + (TotalLegshots + other.TotalLegshots)) : 0
         };
     }
 }
