@@ -262,7 +262,7 @@ public class HenrikApiClient : IHenrikApiClient
         public Dictionary<string, List<MatchPlayerDataV2>> Players { get; set; } = new();
 
         [JsonPropertyName("teams")]
-        public List<MatchTeamDataV2> Teams { get; set; } = new();
+        public Dictionary<string, MatchTeamDataV2> Teams { get; set; } = new();
 
         [JsonPropertyName("rounds")]
         public List<MatchRoundDataV2> Rounds { get; set; } = new();
@@ -593,7 +593,7 @@ public class HenrikApiClient : IHenrikApiClient
         public int Status { get; set; }
 
         [JsonPropertyName("data")]
-        public List<MatchDetailsDataV4> Data { get; set; } = new();
+        public MatchDetailsDataV4? Data { get; set; }
     }
 
     /// <summary>
@@ -759,13 +759,46 @@ public class HenrikApiClient : IHenrikApiClient
         if (string.IsNullOrEmpty(matchId))
             throw new ArgumentNullException(nameof(matchId));
 
-        // Henrik APIの最新エンドポイントを使用
-        // 正しいエンドポイント: /valorant/v2/match/{matchId}
-        string endpoint = $"/valorant/v2/match/{matchId}";
-
-        _logger.LogInformation($"Henrik API リクエスト: {endpoint}");
-
-        return await SendRequestAsync<MatchDetailsResponse>(endpoint, cancellationToken);
+        // Henrik APIのv4エンドポイントを使用
+        // v4エンドポイントはリージョン指定が必要だが、matchIdからリージョンを特定できないため
+        // 複数のリージョンを試す
+        string[] regions = { "ap", "na", "eu", "kr", "latam", "br" };
+        
+        foreach (var region in regions)
+        {
+            try
+            {
+                // v4 APIエンドポイント: /valorant/v4/match/{region}/{matchId}
+                string endpoint = $"/valorant/v4/match/{region}/{matchId}";
+                
+                _logger.LogInformation($"Henrik API リクエスト: {endpoint}");
+                
+                var response = await SendRequestAsync<MatchDetailsResponse>(endpoint, cancellationToken);
+                if (response.Status == 200 && response.Data != null)
+                {
+                    return response;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"リージョン {region} でのマッチ詳細取得に失敗: {ex.Message}");
+                // 次のリージョンを試す
+                continue;
+            }
+        }
+        
+        // すべてのリージョンで失敗した場合、v2 APIを試す（フォールバック）
+        try
+        {
+            _logger.LogInformation("v4 APIでの取得に失敗したため、v2 APIを試みます");
+            string endpoint = $"/valorant/v2/match/{matchId}";
+            return await SendRequestAsync<MatchDetailsResponse>(endpoint, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "すべてのAPIエンドポイントでマッチ詳細の取得に失敗しました: {MatchId}", matchId);
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -774,13 +807,46 @@ public class HenrikApiClient : IHenrikApiClient
         if (string.IsNullOrEmpty(matchId))
             throw new ArgumentNullException(nameof(matchId));
 
-        // Henrik APIの最新エンドポイントを使用
-        // 正しいエンドポイント: /valorant/v2/match/saved/{matchId}
-        string endpoint = $"/valorant/v2/match/saved/{matchId}";
-
-        _logger.LogInformation($"Henrik API リクエスト: {endpoint}");
-
-        return await SendRequestAsync<MatchDetailsResponse>(endpoint, cancellationToken);
+        // Henrik APIのv4エンドポイントを使用
+        // v4エンドポイントはリージョン指定が必要だが、matchIdからリージョンを特定できないため
+        // 複数のリージョンを試す
+        string[] regions = { "ap", "na", "eu", "kr", "latam", "br" };
+        
+        foreach (var region in regions)
+        {
+            try
+            {
+                // v4 APIエンドポイント: /valorant/v4/match/{region}/{matchId}/saved
+                string endpoint = $"/valorant/v4/match/{region}/{matchId}/saved";
+                
+                _logger.LogInformation($"Henrik API リクエスト: {endpoint}");
+                
+                var response = await SendRequestAsync<MatchDetailsResponse>(endpoint, cancellationToken);
+                if (response.Status == 200 && response.Data != null)
+                {
+                    return response;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"リージョン {region} での保存済みマッチ詳細取得に失敗: {ex.Message}");
+                // 次のリージョンを試す
+                continue;
+            }
+        }
+        
+        // すべてのリージョンで失敗した場合、v2 APIを試す（フォールバック）
+        try
+        {
+            _logger.LogInformation("v4 APIでの取得に失敗したため、v2 APIを試みます");
+            string endpoint = $"/valorant/v2/match/saved/{matchId}";
+            return await SendRequestAsync<MatchDetailsResponse>(endpoint, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "すべてのAPIエンドポイントで保存済みマッチ詳細の取得に失敗しました: {MatchId}", matchId);
+            throw;
+        }
     }
 
     /// <summary>
@@ -857,7 +923,7 @@ public class HenrikApiClient : IHenrikApiClient
                             {
                                 _logger.LogInformation("v4 APIレスポンスをデシリアライズします");
                                 var v4Response = JsonSerializer.Deserialize<MatchDetailsResponseV4>(content, _jsonOptions);
-                                if (v4Response == null || v4Response.Data.Count == 0)
+                                if (v4Response == null || v4Response.Data == null)
                                 {
                                     throw new JsonException("v4 APIレスポンスのデシリアライズに失敗しました");
                                 }
@@ -874,8 +940,12 @@ public class HenrikApiClient : IHenrikApiClient
                                     }
                                 };
 
-                                // 最初のデータ要素を使用
-                                var v4Data = v4Response.Data[0];
+                                // データを使用
+                                var v4Data = v4Response.Data;
+                                if (v4Data == null)
+                                {
+                                    throw new JsonException("v4 APIレスポンスのデータがnullです");
+                                }
 
                                 // メタデータの変換
                                 if (v4Data.Metadata != null)
@@ -1053,11 +1123,14 @@ public class HenrikApiClient : IHenrikApiClient
                                 }
 
                                 // チームデータの変換
-                                foreach (var v2Team in v2Response.Data.Teams)
+                                foreach (var teamEntry in v2Response.Data.Teams)
                                 {
+                                    var teamId = teamEntry.Key;
+                                    var v2Team = teamEntry.Value;
+                                    
                                     var team = new MatchTeamData
                                     {
-                                        TeamId = v2Team.Team_id,
+                                        TeamId = teamId, // キーをチームIDとして使用
                                         WonRounds = v2Team.Has_won,
                                         RoundsWon = v2Team.Rounds_won
                                     };
