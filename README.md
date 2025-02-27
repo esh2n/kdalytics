@@ -1,114 +1,114 @@
-# KDalytics - Valorant 戦績トラッカー + Discord連携
+# KDalytics - Valorant Stats Tracker + Discord Integration
 
-Valorantの戦績データを取得し、プレイヤーの統計情報を可視化するWebアプリケーションです。Discord Botを通じて試合結果や戦績の要約を通知する機能も提供します。さらに、Discordチャンネルごとに独自のダッシュボードを持つことができ、チームやフレンドグループでの戦績共有が容易になります。
+A web application that retrieves Valorant performance data and visualizes player statistics. It also provides notifications of match results and performance summaries through a Discord Bot. Additionally, each Discord channel can have its own dashboard, making it easy to share stats among teams and friend groups.
 
-## 機能
+## Features
 
-### Webアプリケーション
-- プレイヤーの戦績データの取得と表示
-- 試合履歴の詳細表示と分析
-- エージェント別・マップ別のパフォーマンス統計
-- チャンネル専用ダッシュボード（Discord連携）
-- ランク変動の追跡
+### Web Application
+- Retrieval and display of player performance data
+- Detailed match history display and analysis
+- Agent-specific and map-specific performance statistics
+- Channel-specific dashboards (Discord integration)
+- Rank progression tracking
 
 ### Discord Bot
-- プレイヤー検索と登録
-- 試合結果の通知と詳細表示
-- KDAランキングなどの統計情報
-- チャンネル専用ダッシュボードへのアクセス提供
+- Player search and registration
+- Match result notifications and detailed display
+- Statistical information such as KDA rankings
+- Access to channel-specific dashboards
 
-## 技術スタック
+## Technology Stack
 
-- **バックエンド**: ASP.NET Core, C#
-- **フロントエンド**: Blazor
-- **データベース**: Elasticsearch
-- **API連携**: Henrik API, Tracker Network API
-- **通知**: Discord Bot (Discord.Net)
-- **デプロイ**: Azure
+- **Backend**: ASP.NET Core, C#
+- **Frontend**: Blazor
+- **Database**: Elasticsearch
+- **API Integration**: Henrik API, Tracker Network API
+- **Notifications**: Discord Bot (Discord.Net)
+- **Deployment**: Azure
 
-## 使用方法
+## Usage
 
-### Discord Botの使用
+### Discord Bot Usage
 
-1. Botをサーバーに招待
-2. チャンネルの登録
+1. Invite the Bot to your server
+2. Register a channel
    ```
    !channel register
    ```
-3. プレイヤーの登録
+3. Register a player
    ```
-   !player track <名前> <タグ>
+   !player track <name> <tag>
    ```
-4. 統計情報の確認
+4. Check statistics
    ```
-   !player stats <名前> <タグ> [期間]
+   !player stats <name> <tag> [period]
    ```
-5. 試合履歴の確認
+5. Check match history
    ```
-   !match recent <名前> <タグ> [件数]
+   !match recent <name> <tag> [count]
    ```
-6. ランキングの確認
+6. Check rankings
    ```
-   !ranking kda [期間]
+   !ranking kda [period]
    ```
-7. ダッシュボードへのアクセス
+7. Access the dashboard
    ```
    !channel dashboard
    ```
 
-### Webダッシュボードの使用
+### Web Dashboard Usage
 
-1. Discord Botから取得したURLにアクセス
-2. アクセスコードを入力してログイン
-3. チャンネルに登録されたプレイヤーの統計情報を閲覧
-4. 各プレイヤーの詳細ページや試合詳細ページを確認
+1. Access the URL obtained from the Discord Bot
+2. Enter the access code to log in
+3. View statistics for players registered in the channel
+4. Check detailed pages for each player and match details
 
-## 開発環境のセットアップ
+## Development Environment Setup
 
-### 前提条件
+### Prerequisites
 
 - .NET 9.0 SDK
 - Docker Desktop
-- Visual Studio 2022 または Visual Studio Code
-- Discord Bot Token（Discord Developer Portalから取得）
+- Visual Studio 2022 or Visual Studio Code
+- Discord Bot Token (obtained from Discord Developer Portal)
 
-### 手順
+### Steps
 
-1. リポジトリをクローン
+1. Clone the repository
 
 ```bash
 git clone https://github.com/esh2n/kdalytics.git
 cd kdalytics
 ```
 
-2. 依存関係のインストール
+2. Install dependencies
 
 ```bash
 dotnet restore
 ```
 
-3. Elasticsearchの起動
+3. Start Elasticsearch
 
 ```bash
 cd docker
 docker-compose up -d
 ```
 
-4. Elasticsearchのインデックスを作成
+4. Create Elasticsearch indices
 
 ```bash
 ./tools/setup-elasticsearch-indices.sh
 ```
 
-5. テストデータの生成（オプション）
+5. Generate test data (optional)
 
 ```bash
 ./tools/generate-test-data.sh
 ```
 
-6. Discord Bot設定
+6. Discord Bot configuration
 
-Discord Botのトークンを`src/KDalytics.Discord/appsettings.json`に設定します：
+Set the Discord Bot token in `src/KDalytics.Discord/appsettings.json`:
 
 ```json
 {
@@ -119,58 +119,58 @@ Discord Botのトークンを`src/KDalytics.Discord/appsettings.json`に設定�
 }
 ```
 
-7. APIの起動
+7. Start the API
 
 ```bash
 dotnet run --project src/KDalytics.API/KDalytics.API.csproj
 ```
 
-8. Webフロントエンドの起動
+8. Start the Web frontend
 
 ```bash
 dotnet run --project src/KDalytics.Web/KDalytics.Web.csproj
 ```
 
-9. Discord Botの起動
+9. Start the Discord Bot
 
 ```bash
 dotnet run --project src/KDalytics.Discord/KDalytics.Discord.csproj
 ```
 
-## APIエンドポイント
+## API Endpoints
 
-APIの詳細なドキュメントは、APIを起動した後に以下のURLでSwagger UIを通じて確認できます：
+Detailed API documentation can be viewed through Swagger UI after starting the API:
 
 ```
 http://localhost:5167/swagger
 ```
 
-主要なエンドポイント：
+Main endpoints:
 
-- `GET /api/players/{puuid}` - プレイヤー情報の取得
-- `POST /api/players/search` - 名前とタグでプレイヤーを検索
-- `GET /api/matches/player/{puuid}/recent` - プレイヤーの最近の試合を取得
-- `GET /api/performances/player/{puuid}/agents` - エージェント別パフォーマンスを取得
+- `GET /api/players/{puuid}` - Get player information
+- `POST /api/players/search` - Search for a player by name and tag
+- `GET /api/matches/player/{puuid}/recent` - Get a player's recent matches
+- `GET /api/performances/player/{puuid}/agents` - Get agent-specific performance
 
-## Elasticsearchの設定
+## Elasticsearch Configuration
 
-Elasticsearchの詳細な設定方法については、[Elasticsearchセットアップガイド](docs/elasticsearch-setup.md)を参照してください。
+For detailed information on configuring Elasticsearch, refer to the [Elasticsearch Setup Guide](docs/elasticsearch-setup.md).
 
-## テスト
+## Testing
 
 ```bash
 dotnet test
 ```
 
-## ライセンス
+## License
 
-このプロジェクトはMITライセンスの下で公開されています。詳細は[LICENSE](LICENSE)ファイルを参照してください。
+This project is released under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## 貢献
+## Contributing
 
-プルリクエストは歓迎します。大きな変更を加える前には、まずissueを開いて変更内容について議論してください。
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
-## 謝辞
+## Acknowledgements
 
-- [Henrik-3/unofficial-valorant-api](https://github.com/Henrik-3/unofficial-valorant-api) - 非公式Valorant APIの提供
-- [Tracker Network](https://tracker.gg/) - 戦績データの提供
+- [Henrik-3/unofficial-valorant-api](https://github.com/Henrik-3/unofficial-valorant-api) - Providing the unofficial Valorant API
+- [Tracker Network](https://tracker.gg/) - Providing performance data
