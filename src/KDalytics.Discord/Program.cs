@@ -1,16 +1,18 @@
 ﻿using Discord;
 using Discord.Commands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using KDalytics.Web.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 
 namespace KDalytics.Discord;
 
 public class Program
 {
     private DiscordSocketClient _client;
-    private CommandService _commands;
+    private InteractionService _interactions;
     private IConfiguration _configuration;
     private IServiceProvider _services;
 
@@ -18,7 +20,7 @@ public class Program
     public Program()
     {
         _client = new DiscordSocketClient();
-        _commands = new CommandService();
+        _interactions = new InteractionService(_client);
         _configuration = new ConfigurationBuilder().Build(); // 一時的な空の設定
         _services = new ServiceCollection().BuildServiceProvider(); // 一時的な空のサービスプロバイダー
     }
@@ -76,13 +78,13 @@ public class Program
         // Discordクライアントの設定
         var config = new DiscordSocketConfig
         {
-            // MessageContent インテントを使用しない
-            GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMessages | GatewayIntents.DirectMessages,
-            AlwaysDownloadUsers = false // GuildMembers インテントが必要ないように変更
+            // スラッシュコマンドに必要なインテント
+            GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMessages | GatewayIntents.DirectMessages | GatewayIntents.MessageContent,
+            AlwaysDownloadUsers = false
         };
 
         _client = new DiscordSocketClient(config);
-        _commands = new CommandService();
+        _interactions = new InteractionService(_client);
 
         // 依存関係の設定
         _services = ConfigureServices();
@@ -90,10 +92,12 @@ public class Program
         // イベントハンドラーの登録
         _client.Log += LogAsync;
         _client.Ready += ReadyAsync;
+
+        // 従来のコマンドシステムのサポート（移行期間中）
         _client.MessageReceived += MessageReceivedAsync;
 
         // ボットの起動
-        var token = _configuration["DiscordToken"]; // 正しい設定キーを使用
+        var token = _configuration["DiscordToken"];
         if (string.IsNullOrEmpty(token))
         {
             Console.WriteLine("DiscordToken が設定されていません。appsettings.json を確認してください。");
@@ -103,9 +107,9 @@ public class Program
         await _client.LoginAsync(TokenType.Bot, token);
         await _client.StartAsync();
 
-        // コマンドハンドラーの設定
-        var commandHandler = new CommandHandler(_client, _commands, _services);
-        await commandHandler.InstallCommandsAsync();
+        // インタラクションハンドラーの設定
+        var interactionHandler = new InteractionHandler(_client, _interactions, _services, _configuration);
+        await interactionHandler.InitializeAsync();
 
         // アプリケーションが終了しないようにする
         await Task.Delay(Timeout.Infinite);
@@ -115,11 +119,21 @@ public class Program
     {
         var services = new ServiceCollection()
             .AddSingleton(_client)
-            .AddSingleton(_commands)
-            .AddSingleton(_configuration)
-            .AddSingleton<PlayerApiClient>()
-            .AddSingleton<MatchApiClient>()
-            .AddSingleton<PerformanceApiClient>();
+            .AddSingleton(_interactions)
+            .AddSingleton(_configuration);
+
+        // APIクライアントの設定
+        var apiBaseUrl = _configuration["ApiBaseUrl"] ?? "http://localhost:5000";
+        services.AddHttpClient<ApiClient>(client =>
+        {
+            client.BaseAddress = new Uri(apiBaseUrl);
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+        });
+
+        // 各APIクライアントを登録
+        services.AddSingleton<PlayerApiClient>()
+               .AddSingleton<MatchApiClient>()
+               .AddSingleton<PerformanceApiClient>();
 
         return services.BuildServiceProvider();
     }
@@ -136,6 +150,7 @@ public class Program
         return Task.CompletedTask;
     }
 
+    // 従来のコマンドシステムのサポート（移行期間中）
     private async Task MessageReceivedAsync(SocketMessage messageParam)
     {
         // ボットからのメッセージは無視
@@ -148,90 +163,16 @@ public class Program
 
         // コマンドの内容を取得
         var commandText = message.Content.Substring(argPos).Trim();
-        var context = new SocketCommandContext(_client, message);
 
         try
         {
-            Console.WriteLine($"コマンドを受信: {commandText}");
-
-            // 簡易的なコマンド処理
-            if (commandText.StartsWith("channel"))
-            {
-                await HandleChannelCommandAsync(context, commandText);
-            }
-            else
-            {
-                await message.ReplyAsync("未知のコマンドです。`!channel help` でヘルプを表示できます。");
-            }
+            Console.WriteLine($"従来のコマンドを受信: {commandText}");
+            await message.ReplyAsync("このコマンドはスラッシュコマンドに移行しました。`/help` でスラッシュコマンドの一覧を確認してください。");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"コマンド処理中にエラーが発生しました: {ex.Message}");
             await message.ReplyAsync($"エラーが発生しました: {ex.Message}");
-        }
-    }
-
-    private async Task HandleChannelCommandAsync(SocketCommandContext context, string commandText)
-    {
-        var parts = commandText.Split(' ', 2);
-        var subCommand = parts.Length > 1 ? parts[1] : "help";
-
-        var playerApi = _services.GetService<PlayerApiClient>();
-
-        switch (subCommand)
-        {
-            case "register":
-                await context.Channel.TriggerTypingAsync();
-                try
-                {
-                    // チャンネル情報を取得
-                    var channelId = context.Channel.Id;
-                    var guildId = context.Guild?.Id ?? 0;
-                    var channelName = context.Channel.Name;
-                    var guildName = context.Guild?.Name ?? "DMチャンネル";
-
-                    // 簡易的なアクセスコード生成
-                    var accessCode = Convert.ToBase64String(
-                        System.Security.Cryptography.SHA256.Create()
-                        .ComputeHash(System.Text.Encoding.UTF8.GetBytes($"{channelId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 86400}"))
-                    ).Substring(0, 8).Replace("/", "X").Replace("+", "Y");
-
-                    var dashboardUrl = _configuration["WebAppUrl"] ?? "http://localhost:5173";
-
-                    var embed = new EmbedBuilder()
-                        .WithTitle("チャンネル登録完了")
-                        .WithDescription($"このチャンネル「{channelName}」をKDalyticsに登録しました。")
-                        .WithColor(Color.Green)
-                        .AddField("ダッシュボードURL", $"{dashboardUrl}/channel/{channelId}")
-                        .AddField("アクセスコード", $"`{accessCode}`")
-                        .AddField("使い方", "1. 上記URLにアクセスしてください\n2. アクセスコードを入力してログインしてください\n3. このチャンネルで登録したプレイヤーの統計が表示されます")
-                        .WithFooter(footer => footer.Text = $"チャンネルID: {channelId}")
-                        .WithCurrentTimestamp()
-                        .Build();
-
-                    await context.Channel.SendMessageAsync(embed: embed);
-                }
-                catch (Exception ex)
-                {
-                    await context.Channel.SendMessageAsync($"エラーが発生しました: {ex.Message}");
-                }
-                break;
-
-            case "help":
-            default:
-                var helpEmbed = new EmbedBuilder()
-                    .WithTitle("チャンネルコマンドのヘルプ")
-                    .WithColor(Color.Blue)
-                    .WithDescription("以下のコマンドが利用可能です：")
-                    .AddField("!channel register", "現在のチャンネルをKDalyticsに登録します。")
-                    .AddField("!channel players", "このチャンネルで登録されているプレイヤー一覧を表示します。")
-                    .AddField("!channel dashboard", "このチャンネルのダッシュボードURLを表示します。")
-                    .WithFooter(footer => footer.Text = "KDalytics Bot")
-                    .WithCurrentTimestamp()
-                    .Build();
-
-                await context.Channel.SendMessageAsync(embed: helpEmbed);
-                break;
         }
     }
 }
