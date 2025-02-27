@@ -2,6 +2,7 @@ using Discord;
 using Discord.Commands;
 using KDalytics.Web.Models;
 using KDalytics.Web.Services;
+using Microsoft.Extensions.Configuration;
 using System.Text;
 
 namespace KDalytics.Discord.Modules;
@@ -96,7 +97,7 @@ public class ChannelModule : ModuleBase<SocketCommandContext>
             description.AppendLine("```");
             embed.WithDescription(description.ToString());
 
-            await ReplyAsync(embed: embed);
+            await ReplyAsync(embed: embed.Build());
         }
         catch (Exception ex)
         {

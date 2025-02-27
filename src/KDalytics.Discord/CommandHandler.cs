@@ -19,14 +19,18 @@ public class CommandHandler
 
     public async Task InstallCommandsAsync()
     {
-        // コマンドモジュールの登録
-        await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
-
-        // 登録されたコマンドの一覧を表示
-        Console.WriteLine("登録されたコマンド:");
-        foreach (var command in _commands.Commands)
+        try
         {
-            Console.WriteLine($"- !{command.Name}: {command.Summary}");
+            // モジュールの登録をスキップ
+            Console.WriteLine("コマンドハンドラーを設定しました");
+            Console.WriteLine("モジュールの登録はスキップします");
+
+            // 代わりに、Program.cs の MessageReceived イベントで直接コマンドを処理します
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"コマンドのインストール中にエラーが発生しました: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
         }
     }
 }
