@@ -1,0 +1,338 @@
+@page "/servers"
+@using KDalytics.Web.Models
+@using KDalytics.Web.Services
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>KDalytics - サーバー一覧</PageTitle>
+
+<div class="server-list-container">
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">
+            <span class="title-emoji">🖥️</span> サーバー一覧
+        </h1>
+        <div class="dashboard-actions">
+            <button class="btn btn-primary" @onclick="@(async () => await RefreshServers())">
+                <span>🔄</span> 更新
+            </button>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p class="mt-3">サーバー情報を読み込んでいます...</p>
+        </div>
+    }
+    else if (_error != null)
+    {
+        <div class="alert alert-danger">
+            <strong>エラー:</strong> @_error
+        </div>
+    }
+    else if (_servers == null || _servers.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state-icon">📂</div>
+            <h2>サーバーが見つかりません</h2>
+            <p>KDalyticsボットが参加しているDiscordサーバーがありません。</p>
+            <div class="mt-4">
+                <button class="btn btn-primary" @onclick="@(async () => await AddBotToServer())">
+                    <span>➕</span> ボットをサーバーに追加
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="server-list">
+            @foreach (var server in _servers)
+            {
+                <div class="server-card" @onclick="() => NavigateToServerDashboard(server.Id)">
+                    @if (!string.IsNullOrEmpty(server.IconUrl))
+                    {
+                        <img src="@server.IconUrl" alt="@server.Name" class="server-icon" />
+                    }
+                    else
+                    {
+                        <div class="server-icon server-icon-placeholder">
+                            @server.Name[0]
+                        </div>
+                    }
+                    <div class="server-name">@server.Name</div>
+                    <div class="server-members">
+                        <span class="members-icon">👥</span> @server.MemberCount メンバー
+                    </div>
+                    <div class="server-status @(server.HasBot ? "status-active" : "status-inactive")">
+                        @if (server.HasBot)
+                        {
+                            <span>✅ ボット参加中</span>
+                        }
+                        else
+                        {
+                            <span>❌ ボット未参加</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (_servers.Any(s => !s.HasBot))
+        {
+            <div class="add-bot-section mt-5">
+                <h2>ボットが参加していないサーバー</h2>
+                <p>以下のサーバーにはKDalyticsボットが参加していません。ボットを追加して戦績トラッキングを開始しましょう。</p>
+                <div class="server-list">
+                    @foreach (var server in _servers.Where(s => !s.HasBot))
+                    {
+                        <div class="server-card server-card-inactive">
+                            @if (!string.IsNullOrEmpty(server.IconUrl))
+                            {
+                                <img src="@server.IconUrl" alt="@server.Name" class="server-icon" />
+                            }
+                            else
+                            {
+                                <div class="server-icon server-icon-placeholder">
+                                    @server.Name[0]
+                                </div>
+                            }
+                            <div class="server-name">@server.Name</div>
+                            <div class="server-members">
+                                <span class="members-icon">👥</span> @server.MemberCount メンバー
+                            </div>
+                            <button class="btn btn-primary btn-sm mt-2" @onclick="() => AddBotToServer(server.Id)">
+                                <span>➕</span> ボットを追加
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private string? _error;
+    private List<DiscordServerModel>? _servers;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 認証チェック
+        var token = await GetStoredTokenAsync();
+        if (string.IsNullOrEmpty(token))
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        await LoadServers();
+    }
+
+    private async Task LoadServers()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            // TODO: 実際にはAPIを呼び出してサーバー一覧を取得する
+            // 現在はモックデータ
+            await Task.Delay(1000); // APIリクエストをシミュレート
+
+            // モックデータ
+            _servers = new List<DiscordServerModel>
+{
+new DiscordServerModel
+{
+Id = "123456789012345678",
+Name = "Valorantチーム Alpha",
+IconUrl = "",
+MemberCount = 25,
+HasBot = true
+},
+new DiscordServerModel
+{
+Id = "234567890123456789",
+Name = "ゲーミングコミュニティ",
+IconUrl = "",
+MemberCount = 156,
+HasBot = true
+},
+new DiscordServerModel
+{
+Id = "345678901234567890",
+Name = "FPSプレイヤーズ",
+IconUrl = "",
+MemberCount = 78,
+HasBot = false
+}
+};
+        }
+        catch (Exception ex)
+        {
+            _error = $"サーバー一覧の取得中にエラーが発生しました: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task RefreshServers()
+    {
+        await LoadServers();
+    }
+
+    private void NavigateToServerDashboard(string serverId)
+    {
+        NavigationManager.NavigateTo($"/server/{serverId}/dashboard");
+    }
+
+    private async Task AddBotToServer(string? serverId = null)
+    {
+        // TODO: 実際にはDiscord OAuth2フローでボットを追加する
+        // 現在はモックの処理
+        var clientId = "YOUR_DISCORD_CLIENT_ID"; // 実際のDiscord Client IDに置き換える
+        var permissions = "268435456"; // 基本的な権限（メッセージ送信など）
+        var scope = "bot";
+
+        var redirectUri = string.IsNullOrEmpty(serverId)
+        ? $"{NavigationManager.BaseUri}servers"
+        : $"{NavigationManager.BaseUri}server/{serverId}/setup";
+
+        var url =
+        $"https://discord.com/api/oauth2/authorize?client_id={clientId}&permissions={permissions}&scope={scope}&redirect_uri={Uri.EscapeDataString(redirectUri)}&response_type=code";
+
+        await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+    }
+
+    // ローカルストレージからトークンを取得
+    private async Task<string> GetStoredTokenAsync()
+    {
+        try
+        {
+            return await JSRuntime.InvokeAsync<string>("localStorageHelper.getItem", "kdalytics_auth_token") ?? "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+}
+
+<style>
+    .server-list-container {
+        padding: 1.5rem;
+    }
+
+    .title-emoji {
+        margin-right: 0.5rem;
+    }
+
+    .server-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .server-card {
+        background-color: white;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .server-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .server-card-inactive {
+        opacity: 0.7;
+    }
+
+    .server-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        margin-bottom: 1rem;
+        object-fit: cover;
+    }
+
+    .server-icon-placeholder {
+        background-color: var(--primary);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .server-name {
+        font-weight: 600;
+        font-size: 1.125rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .server-members {
+        font-size: 0.875rem;
+        color: var(--gray-600);
+        margin-bottom: 0.75rem;
+    }
+
+    .members-icon {
+        margin-right: 0.25rem;
+    }
+
+    .server-status {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+        font-weight: 500;
+    }
+
+    .status-active {
+        background-color: rgba(87, 242, 135, 0.1);
+        color: var(--success);
+    }
+
+    .status-inactive {
+        background-color: rgba(237, 66, 69, 0.1);
+        color: var(--danger);
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 3rem 1rem;
+        background-color: white;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--gray-400);
+    }
+
+    .add-bot-section {
+        background-color: white;
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        box-shadow: var(--shadow);
+    }
+</style>

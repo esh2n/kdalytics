@@ -1,0 +1,103 @@
+@page "/login"
+@using KDalytics.Web.Models
+@using KDalytics.Web.Services
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>KDalytics - Discordでログイン</PageTitle>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h1>KDalytics</h1>
+            <p>Valorant 戦績トラッカー + Discord連携</p>
+        </div>
+
+        <div class="login-body">
+            <div class="text-center mb-4">
+                <img src="images/valorant-logo.png" alt="Valorant Logo" class="login-logo"
+                    onerror="this.src='images/placeholder.png'; this.onerror=null;" />
+            </div>
+
+            <p class="text-center mb-4">
+                Discordアカウントでログインして、サーバーの戦績データにアクセスしましょう。
+            </p>
+
+            <button class="discord-button" @onclick="LoginWithDiscord">
+                <span>🔗</span> Discordでログイン
+            </button>
+        </div>
+
+        <div class="login-footer">
+            <p class="text-sm text-gray mb-0">
+                ログインすることで、KDalyticsの<a href="/terms">利用規約</a>と<a href="/privacy">プライバシーポリシー</a>に同意したことになります。
+            </p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // すでにログインしているかチェック
+        var token = await GetStoredTokenAsync();
+        if (!string.IsNullOrEmpty(token))
+        {
+            // トークンの検証
+            if (await ValidateTokenAsync(token))
+            {
+                // 認証成功、サーバー一覧ページにリダイレクト
+                NavigateToServers();
+            }
+        }
+    }
+
+    private async Task LoginWithDiscord()
+    {
+        try
+        {
+            // Discord認証ページを開く
+            await JSRuntime.InvokeVoidAsync("openDiscordAuth");
+        }
+        catch (Exception ex)
+        {
+            _error = $"ログイン中にエラーが発生しました: {ex.Message}";
+        }
+    }
+
+    private void NavigateToServers()
+    {
+        NavigationManager.NavigateTo("/servers");
+    }
+
+    // ローカルストレージからトークンを取得
+    private async Task<string> GetStoredTokenAsync()
+    {
+        try
+        {
+            return await JSRuntime.InvokeAsync<string>("localStorageHelper.getItem", "kdalytics_auth_token") ?? "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    // トークンの検証（実際の実装ではAPIを呼び出して検証する）
+    private async Task<bool> ValidateTokenAsync(string token)
+    {
+        // TODO: 実際にはAPIを呼び出してトークンを検証する
+        // 現在はモックの検証ロジック
+        await Task.Delay(500); // APIリクエストをシミュレート
+        return !string.IsNullOrEmpty(token);
+    }
+}
+
+<style>
+    .login-logo {
+        max-width: 120px;
+        margin-bottom: 1.5rem;
+    }
+</style>

@@ -91,6 +91,11 @@ public record PerformanceStatsModel
     public string MostPlayedAgent { get; init; } = string.Empty;
 
     /// <summary>
+    /// MMR（マッチメイキングレーティング）
+    /// </summary>
+    public int Mmr { get; init; }
+
+    /// <summary>
     /// エージェント別統計
     /// </summary>
     public Dictionary<string, AgentPerformanceModel> AgentStats { get; init; } = new();
@@ -124,6 +129,11 @@ public record PerformanceStatsModel
     /// ヘッドショット率（表示用）
     /// </summary>
     public string HeadshotPercentageDisplay => $"{HeadshotPercentage:P1}";
+
+    /// <summary>
+    /// MMR（表示用）
+    /// </summary>
+    public string MmrDisplay => $"{Mmr:N0}";
 }
 
 /// <summary>

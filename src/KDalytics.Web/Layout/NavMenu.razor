@@ -1,44 +1,70 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">KDalytics</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
+﻿<div class="sidebar-nav">
+    <NavLink class="sidebar-nav-item" href="" Match="NavLinkMatch.All">
+        <span class="sidebar-nav-item-icon">🏠</span>
+        <span>ホーム</span>
+    </NavLink>
+
+    <NavLink class="sidebar-nav-item" href="servers">
+        <span class="sidebar-nav-item-icon">🖥️</span>
+        <span>サーバー一覧</span>
+    </NavLink>
+
+    <NavLink class="sidebar-nav-item" href="players">
+        <span class="sidebar-nav-item-icon">👥</span>
+        <span>プレイヤー</span>
+    </NavLink>
+
+    <NavLink class="sidebar-nav-item" href="rankings">
+        <span class="sidebar-nav-item-icon">🏆</span>
+        <span>ランキング</span>
+    </NavLink>
+
+    <NavLink class="sidebar-nav-item" href="matches">
+        <span class="sidebar-nav-item-icon">🎮</span>
+        <span>試合履歴</span>
+    </NavLink>
+
+    <div class="sidebar-divider"></div>
+
+    <NavLink class="sidebar-nav-item" href="settings">
+        <span class="sidebar-nav-item-icon">⚙️</span>
+        <span>設定</span>
+    </NavLink>
+
+    <NavLink class="sidebar-nav-item" href="help">
+        <span class="sidebar-nav-item-icon">❓</span>
+        <span>ヘルプ</span>
+    </NavLink>
 </div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="oi oi-home" aria-hidden="true"></span> ダッシュボード
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="tracked-players">
-                <span class="oi oi-people" aria-hidden="true"></span> トラッキング中プレイヤー
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="search">
-                <span class="oi oi-magnifying-glass" aria-hidden="true"></span> プレイヤー検索
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="rankings">
-                <span class="oi oi-list" aria-hidden="true"></span> ランキング
-            </NavLink>
-        </div>
-    </nav>
-</div>
-
-@code {
-    private bool collapseNavMenu = true;
-
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
-    {
-        collapseNavMenu = !collapseNavMenu;
+<style>
+    .sidebar-nav {
+        padding: 1rem 0;
     }
-}
+
+    .sidebar-nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1.5rem;
+        color: var(--gray-300);
+        text-decoration: none;
+        transition: var(--transition);
+    }
+
+    .sidebar-nav-item:hover,
+    .sidebar-nav-item.active {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+    .sidebar-nav-item-icon {
+        font-size: 1.25rem;
+    }
+
+    .sidebar-divider {
+        height: 1px;
+        background-color: rgba(255, 255, 255, 0.1);
+        margin: 0.5rem 1.5rem;
+    }
+</style>

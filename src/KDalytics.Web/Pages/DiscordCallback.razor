@@ -1,0 +1,145 @@
+@page "/auth/discord/callback"
+@using System.Web
+@using KDalytics.Web.Models
+@using KDalytics.Web.Services
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>KDalytics - 認証中...</PageTitle>
+
+<div class="auth-callback-container">
+    <div class="auth-callback-card">
+        @if (_isLoading)
+        {
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <p class="mt-3">認証処理中...</p>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="error-container">
+                <div class="error-icon">❌</div>
+                <h2>認証エラー</h2>
+                <p>@_error</p>
+                <button class="btn btn-primary mt-3" @onclick="ReturnToLogin">ログインページに戻る</button>
+            </div>
+        }
+        else
+        {
+            <div class="success-container">
+                <div class="success-icon">✅</div>
+                <h2>認証成功</h2>
+                <p>Discordアカウントとの連携が完了しました。</p>
+                <p class="redirect-text">サーバー一覧ページに移動します...</p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private string? _error;
+    private string? _code;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // URLからcodeパラメータを取得
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var query = HttpUtility.ParseQueryString(uri.Query);
+
+        if (!string.IsNullOrEmpty(query["code"]))
+        {
+            _code = query["code"];
+            await ProcessAuthCode();
+        }
+        else if (!string.IsNullOrEmpty(query["error"]))
+        {
+            _error = $"Discord認証エラー: {query["error"]}";
+            _isLoading = false;
+        }
+        else
+        {
+            _error = "認証コードが見つかりません。";
+            _isLoading = false;
+        }
+    }
+
+    private async Task ProcessAuthCode()
+    {
+        try
+        {
+            // TODO: 実際にはAPIを呼び出してコードをトークンに交換する
+            // 現在はモックの処理
+            await Task.Delay(1500); // APIリクエストをシミュレート
+
+            // 認証成功を想定
+            var mockToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+            await JSRuntime.InvokeVoidAsync("localStorageHelper.setItem", "kdalytics_auth_token", mockToken);
+
+            _isLoading = false;
+
+            // 少し待ってからリダイレクト
+            await Task.Delay(1000);
+            NavigationManager.NavigateTo("/servers");
+        }
+        catch (Exception ex)
+        {
+            _error = $"認証処理中にエラーが発生しました: {ex.Message}";
+            _isLoading = false;
+        }
+    }
+
+    private void ReturnToLogin()
+    {
+        NavigationManager.NavigateTo("/login");
+    }
+}
+
+<style>
+    .auth-callback-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .auth-callback-card {
+        background-color: white;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 2rem;
+        width: 100%;
+        max-width: 500px;
+        text-align: center;
+    }
+
+    .error-container,
+    .success-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .error-icon,
+    .success-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .error-icon {
+        color: var(--danger);
+    }
+
+    .success-icon {
+        color: var(--success);
+    }
+
+    .redirect-text {
+        color: var(--gray-600);
+        font-size: 0.875rem;
+        margin-top: 1rem;
+    }
+</style>
